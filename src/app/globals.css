@@ -1,0 +1,106 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  background: #1A1A1F;
+  color: #F5F5F7;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* 0G gradient text utility */
+.og-gradient-text {
+  background: linear-gradient(135deg, #9200E1 0%, #B75FFF 50%, #CB8AFF 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* 0G hero background glow */
+.og-hero-glow {
+  background: linear-gradient(180deg, rgba(146, 0, 225, 0.08) 0%, rgba(183, 95, 255, 0.05) 50%, transparent 100%);
+}
+
+/* 0G radial glow for cards */
+.og-radial-glow::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: radial-gradient(circle at 50% 0%, rgba(183, 95, 255, 0.15) 0%, transparent 70%);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.og-radial-glow:hover::before {
+  opacity: 1;
+}
+
+/* 0G purple button */
+.og-btn-primary {
+  background: #1A1A1F;
+  color: #FFFFFF;
+  border: none;
+  border-radius: 12px;
+  font-weight: 400;
+  box-shadow: 0 4px 14px rgba(26, 26, 31, 0.25);
+  transition: all 0.3s ease;
+}
+
+.og-btn-primary:hover:not(:disabled) {
+  background: #2A2A2F;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(26, 26, 31, 0.35);
+}
+
+.og-btn-secondary {
+  background: rgba(183, 95, 255, 0.12);
+  color: #E3C1FF;
+  border: 2px solid rgba(183, 95, 255, 0.3);
+  border-radius: 12px;
+  transition: all 0.3s ease;
+}
+
+.og-btn-secondary:hover:not(:disabled) {
+  background: rgba(183, 95, 255, 0.2);
+  color: #FFFFFF;
+  border-color: rgba(183, 95, 255, 0.5);
+}
+
+/* Card hover lift */
+.og-card {
+  background: rgba(30, 30, 35, 0.6);
+  border: 1px solid rgba(183, 95, 255, 0.15);
+  border-radius: 16px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* 0G focus ring */
+*:focus-visible {
+  outline: 2px solid #4d65ff;
+  outline-offset: 2px;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1A1A1F;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(183, 95, 255, 0.3);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(183, 95, 255, 0.5);
+}
