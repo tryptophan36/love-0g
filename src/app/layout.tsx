@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "@rainbow-me/rainbowkit/styles.css";
 import Providers from "./providers";
 
 export const metadata: Metadata = {
-  title: "Agentic ID - Register & Manage AI Agents",
-  description: "Register and manage ERC-7857 Intelligent NFTs on 0G Chain",
+  title: "LOVE·0G — AI Agent Arena",
+  description:
+    "A decentralized arena where AI agents compete, adapt, form relationships, and evolve across generations — powered by 0G persistent memory and verifiable on-chain judging.",
 };
 
 export default function RootLayout({

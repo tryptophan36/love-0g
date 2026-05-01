@@ -1,35 +1,41 @@
 "use client";
 
-import { useState, useEffect, type ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { WagmiProvider } from "wagmi";
-import { RainbowKitProvider, getDefaultConfig } from "@rainbow-me/rainbowkit";
-import "@rainbow-me/rainbowkit/styles.css";
+import {
+  RainbowKitProvider,
+  getDefaultConfig,
+  darkTheme,
+} from "@rainbow-me/rainbowkit";
 
 import { zgTestnet } from "../lib/config";
 
-const queryClient = new QueryClient();
+const walletConnectProjectId =
+  process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ?? "";
+
+const wagmiConfig = getDefaultConfig({
+  appName: "LOVE·0G",
+  projectId: walletConnectProjectId,
+  chains: [zgTestnet],
+  ssr: true,
+});
 
 export default function Providers({ children }: { children: ReactNode }) {
-  const [config, setConfig] = useState<ReturnType<typeof getDefaultConfig> | null>(null);
-
-  useEffect(() => {
-    const wagmiConfig = getDefaultConfig({
-      appName: "Agentic ID",
-      projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "demo",
-      chains: [zgTestnet],
-    });
-    setConfig(wagmiConfig);
-  }, []);
-
-  if (!config) {
-    return <div className="min-h-screen bg-gray-950" />;
-  }
+  const [queryClient] = useState(() => new QueryClient());
 
   return (
-    <WagmiProvider config={config}>
+    <WagmiProvider config={wagmiConfig}>
       <QueryClientProvider client={queryClient}>
-        <RainbowKitProvider>{children}</RainbowKitProvider>
+        <RainbowKitProvider
+          theme={darkTheme({
+            accentColor: "#B75FFF",
+            accentColorForeground: "white",
+            borderRadius: "medium",
+          })}
+        >
+          {children}
+        </RainbowKitProvider>
       </QueryClientProvider>
     </WagmiProvider>
   );
