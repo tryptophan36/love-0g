@@ -1,10 +1,10 @@
 import { Indexer, MemData } from '@0gfoundation/0g-ts-sdk'
-import { ethers } from 'ethers'
 import type { Match } from '../types.js'
+import { createSigner, getIndexerRpcUrl, getRpcUrl } from '../config/wallet.js'
 
-const provider = new ethers.JsonRpcProvider(process.env.OG_RPC_URL!)
-const signer   = new ethers.Wallet(process.env.OG_PRIVATE_KEY!, provider)
-const indexer  = new Indexer(process.env.OG_INDEXER_RPC!)
+const rpcUrl = getRpcUrl()
+const signer = createSigner()
+const indexer = new Indexer(getIndexerRpcUrl())
 
 export async function appendMatchLog(match: Match): Promise<string> {
   const payload = {
@@ -15,8 +15,8 @@ export async function appendMatchLog(match: Match): Promise<string> {
     winnerId:  match.winnerId,
     timestamp: Date.now()
   }
-  const data = new MemData(new TextEncoder().encode(JSON.stringify(payload)))
-  const [rootHash, err] = await indexer.upload(data, process.env.OG_RPC_URL!, signer)
+  const data                = new MemData(new TextEncoder().encode(JSON.stringify(payload)))
+  const [uploadResult, err] = await indexer.upload(data, rpcUrl, signer)
   if (err) throw new Error(`0G Log append failed: ${err}`)
-  return rootHash
+  return 'rootHash' in uploadResult ? uploadResult.rootHash : uploadResult.rootHashes[0]
 }

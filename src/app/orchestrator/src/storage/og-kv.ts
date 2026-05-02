@@ -1,14 +1,10 @@
 import { Indexer, MemData } from '@0gfoundation/0g-ts-sdk'
-import { ethers } from 'ethers'
 import type { ChooserState, ChooserReaction } from '../types.js'
+import { createSigner, getIndexerRpcUrl, getRpcUrl } from '../config/wallet.js'
 
-const RPC_URL    = process.env.OG_RPC_URL!
-const INDEXER    = process.env.OG_INDEXER_RPC!
-const PRIVATE_KEY = process.env.OG_PRIVATE_KEY!
-
-const provider = new ethers.JsonRpcProvider(RPC_URL)
-const signer   = new ethers.Wallet(PRIVATE_KEY, provider)
-const indexer  = new Indexer(INDEXER)
+const RPC_URL = getRpcUrl()
+const signer = createSigner()
+const indexer = new Indexer(getIndexerRpcUrl())
 
 // In-memory cache so we don't re-upload identical state
 const localCache: Record<string, { hash: string; value: string }> = {}
@@ -21,10 +17,11 @@ export async function kvSet(key: string, value: object): Promise<string> {
     return localCache[key].hash
   }
 
-  const data = new MemData(new TextEncoder().encode(serialized))
-  const [rootHash, err] = await indexer.upload(data, RPC_URL, signer)
+  const data                = new MemData(new TextEncoder().encode(serialized))
+  const [uploadResult, err] = await indexer.upload(data, RPC_URL, signer)
   if (err) throw new Error(`0G KV set failed for key ${key}: ${err}`)
-
+  const rootHash = 'rootHash' in uploadResult ? uploadResult.rootHash : uploadResult.rootHashes[0]
+  console.log('rootHash', rootHash)
   localCache[key] = { hash: rootHash, value: serialized }
   return rootHash
 }
@@ -32,8 +29,6 @@ export async function kvSet(key: string, value: object): Promise<string> {
 export async function kvGet(rootHash: string): Promise<object | null> {
   if (!rootHash) return null
   try {
-    const buf: Buffer[] = []
-    // download to memory
     const tmpPath = `/tmp/og-${Date.now()}`
     const err = await indexer.download(rootHash, tmpPath, true)
     if (err) throw err
@@ -44,6 +39,14 @@ export async function kvGet(rootHash: string): Promise<object | null> {
   } catch {
     return null
   }
+}
+
+// Raw blob upload — used when you need the rootHash as an encryptedURI for minting
+export async function uploadAgentBlob(payload: object): Promise<string> {
+  const data                = new MemData(new TextEncoder().encode(JSON.stringify(payload)))
+  const [uploadResult, err] = await indexer.upload(data, RPC_URL, signer)
+  if (err) throw new Error(`0G Storage upload failed: ${err}`)
+  return 'rootHash' in uploadResult ? uploadResult.rootHash : uploadResult.rootHashes[0]
 }
 
 // Convenience: write chooser state, return new root hash
