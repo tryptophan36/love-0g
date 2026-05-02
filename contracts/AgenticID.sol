@@ -174,7 +174,10 @@ contract AgenticID is ERC721Enumerable, AccessControl, Pausable, IERC7857, IERC7
     // =========================================================================
 
     function authorizeUsage(uint256 tokenId, address user) external {
-        require(ownerOf(tokenId) == msg.sender, "Not the owner");
+        require(
+            ownerOf(tokenId) == msg.sender || hasRole(OPERATOR_ROLE, msg.sender),
+            "Not the owner or operator"
+        );
         require(!_isAuthorizedUser[tokenId][user], "Already authorized");
         require(_authorizedUsers[tokenId].length < 100, "Max authorizations reached");
 
@@ -188,7 +191,10 @@ contract AgenticID is ERC721Enumerable, AccessControl, Pausable, IERC7857, IERC7
     }
 
     function revokeAuthorization(uint256 tokenId, address user) external {
-        require(ownerOf(tokenId) == msg.sender, "Not the owner");
+        require(
+            ownerOf(tokenId) == msg.sender || hasRole(OPERATOR_ROLE, msg.sender),
+            "Not the owner or operator"
+        );
         require(_isAuthorizedUser[tokenId][user], "Not authorized");
 
         _isAuthorizedUser[tokenId][user] = false;
@@ -231,7 +237,10 @@ contract AgenticID is ERC721Enumerable, AccessControl, Pausable, IERC7857, IERC7
 
     function batchAuthorizeUsage(uint256[] calldata tokenIds, address user) external {
         for (uint256 i = 0; i < tokenIds.length; i++) {
-            require(ownerOf(tokenIds[i]) == msg.sender, "Not the owner");
+            require(
+                ownerOf(tokenIds[i]) == msg.sender || hasRole(OPERATOR_ROLE, msg.sender),
+                "Not the owner or operator"
+            );
             if (!_isAuthorizedUser[tokenIds[i]][user]) {
                 require(_authorizedUsers[tokenIds[i]].length < 100, "Max authorizations reached");
                 _authorizedUsers[tokenIds[i]].push(user);
