@@ -1,5 +1,9 @@
 node_modules/
 .next/
 out/
+artifacts/
+cache/
+typechain-types/
+src/app/orchestrator/dist/
 .env
 .env.local
