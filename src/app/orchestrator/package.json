@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "tsx watch index.ts",
     "build": "tsc",
-    "start": "node index.ts"
+    "start": "tsx index.ts"
   },
   "dependencies": {
     "@0gfoundation/0g-ts-sdk": "latest",
