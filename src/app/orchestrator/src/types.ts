@@ -9,6 +9,7 @@ export interface TraitVector {
 
 export interface AgentProfile {
   avatar?: string
+  imageUrl?: string
   age?: string
   gender?: string
   origin?: string

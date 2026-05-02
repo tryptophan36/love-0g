@@ -1,5 +1,6 @@
 import type { Agent, TraitVector } from '../types.js'
 import { mintAgent } from '../chain/agentNFT.js'
+import { uploadAgentBlob } from '../storage/og-kv.js'
 import { ethers } from 'ethers'
 
 function gaussianNoise(scale = 0.05): number {
@@ -20,7 +21,7 @@ export function mergeTraits(a: TraitVector, b: TraitVector, bias = 0.5): TraitVe
       k,
       clamp(a[k] * bias + b[k] * (1 - bias) + gaussianNoise(0.06))
     ])
-  ) as TraitVector
+  ) as unknown as TraitVector
 }
 
 export async function breedAgents(
@@ -38,18 +39,23 @@ export async function breedAgents(
     : parentB.strategy
 
   const childAgent: Omit<Agent, 'tokenId' | 'ogStorageKey'> = {
-    id:        crypto.randomUUID(),
-    name:      childName,
-    traits:    childTraits,
-    strategy:  childStrategy,
-    owner:     await signer.getAddress(),
-    wins:      0,
-    losses:    0,
-    createdAt: Date.now()
+    id:           crypto.randomUUID(),
+    name:         childName,
+    traits:       childTraits,
+    strategy:     childStrategy,
+    systemPrompt: '',
+    profile:      { imageUrl: '' },
+    owner:        await signer.getAddress(),
+    wins:         0,
+    losses:       0,
+    createdAt:    Date.now(),
   }
 
-  // Mint new iNFT — passes parentA.tokenId and parentB.tokenId for lineage
-  const tokenId = await mintAgent(signer, childAgent, parentA.tokenId, parentB.tokenId)
+  // Upload child blob to 0G Storage first so we have a real storageKey
+  const storageKey = await uploadAgentBlob(childAgent)
 
-  return { ...childAgent, tokenId, ogStorageKey: '' }
+  // Mint new iNFT — passes parentA.tokenId and parentB.tokenId for lineage
+  const { tokenId } = await mintAgent(signer, childAgent, storageKey, parentA.tokenId, parentB.tokenId)
+
+  return { ...childAgent, tokenId, ogStorageKey: storageKey }
 }
