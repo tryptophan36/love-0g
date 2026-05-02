@@ -25,6 +25,7 @@ export async function POST(req: NextRequest) {
       systemPrompt,
       // basics fields forwarded as profile
       avatar,
+      imageUrl,
       age,
       gender,
       origin,
@@ -37,7 +38,7 @@ export async function POST(req: NextRequest) {
       ogStorageKey,
     } = body
 
-    const profile = { avatar, age, gender, origin, profession, education, hobbies }
+    const profile = { avatar, imageUrl, age, gender, origin, profession, education, hobbies }
 
     const payload = {
       id,

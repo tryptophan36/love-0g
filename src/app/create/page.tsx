@@ -17,7 +17,7 @@ export default function CreateAgent() {
 
   // Step 1
   const [basics, setBasics] = useState<Basics>({
-    name: '', avatar: '', age: '', gender: '', origin: '', profession: '', education: '', hobbies: '',
+    name: '', avatar: '', imageUrl: '', age: '', gender: '', origin: '', profession: '', education: '', hobbies: '',
   })
 
   // Step 2
