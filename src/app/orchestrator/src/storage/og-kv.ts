@@ -66,3 +66,24 @@ export async function readChooserReaction(
   const state = await kvGet(stateHash) as ChooserState | null
   return state?.reactions?.[agentId] ?? null
 }
+
+// Convenience: read the full chooser state object
+export async function readChooserState(stateHash: string): Promise<ChooserState | null> {
+  if (!stateHash) return null
+  return (await kvGet(stateHash)) as ChooserState | null
+}
+
+// Write initial match metadata to 0G KV — marks match as started before engine runs
+export async function initMatchKV(
+  matchId: string,
+  contestantIds: string[],
+  chooserId: string,
+): Promise<string> {
+  return kvSet(`match:${matchId}:meta`, {
+    matchId,
+    status:       'starting',
+    contestantIds,
+    chooserId,
+    startedAt:    Date.now(),
+  })
+}

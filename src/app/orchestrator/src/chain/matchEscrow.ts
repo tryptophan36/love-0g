@@ -1,5 +1,5 @@
 import { ethers } from 'ethers'
-import { createRpcProvider } from '../config/wallet.js'
+import { createRpcProvider, createSigner } from '../config/wallet.js'
 
 const MATCH_CONTRACT = process.env.MATCH_CONTRACT?.trim()
 const MATCH_CHAIN_ID = 16602
@@ -146,4 +146,38 @@ export async function readAgentMatchStatus(agentId: bigint) {
     seatsTaken:    Number(row.seatsTaken),
     maxContestants: Number(row.maxContestants),
   }
+}
+
+// ─── Orchestrator write functions ──────────────────────────────────────────────
+
+/** Call startMatch on-chain — transitions status FULL → RUNNING */
+export async function markMatchRunning(matchId: bigint): Promise<string> {
+  const signer   = createSigner()
+  const contract = getContract(signer)
+  const tx       = await contract.startMatch(matchId)
+  const receipt  = await tx.wait()
+  return receipt.hash as string
+}
+
+/** Call settleMatch on-chain — distributes pot and records proof */
+export async function settleMatchOnChain(
+  matchId:         bigint,
+  winnerAgentId:   bigint,
+  runnerUpAgentId: bigint,
+  proofHash:       string,
+): Promise<string> {
+  const signer   = createSigner()
+  const contract = getContract(signer)
+  const bytes32  = proofHash.startsWith('0x') ? proofHash : `0x${proofHash}`
+  const tx       = await contract.settleMatch(matchId, winnerAgentId, runnerUpAgentId, bytes32)
+  const receipt  = await tx.wait()
+  return receipt.hash as string
+}
+
+/** Returns all on-chain matchIds that are currently in FULL status */
+export async function getAllFullMatchIds(): Promise<bigint[]> {
+  const provider = createRpcProvider()
+  const contract = getContract(provider)
+  const ids: bigint[] = await contract.getAllFullMatches()
+  return ids
 }

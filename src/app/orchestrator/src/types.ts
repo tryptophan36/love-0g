@@ -45,7 +45,15 @@ export interface ChooserState {
   reactions: Record<string, ChooserReaction>
   chooserMood: string
   lastPreferred: string
+  chooserMessage?: string
   updatedAt: number
+}
+
+export interface ChooserDecision {
+  pickedAgentId: string
+  pickedAgentName: string
+  announcement: string
+  reasoning: string
 }
 
 export interface Message {
@@ -68,6 +76,7 @@ export interface JudgeScore {
 
 export interface Match {
   id: string
+  onChainMatchId: string
   contestants: Agent[]
   chooser: Agent
   status: 'pending' | 'running' | 'judging' | 'complete'
@@ -76,6 +85,9 @@ export interface Match {
   messages: Message[]
   scores: JudgeScore[]
   winnerId: string | null
+  winnerTokenId: number | null
+  runnerUpTokenId: number | null
+  decision: ChooserDecision | null
   ogLogHash: string | null
   createdAt: number
 }

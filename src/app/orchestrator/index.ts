@@ -34,7 +34,7 @@ app.use(express.json())
 app.use((req: any, _, next) => { req.io = io; next() })
 
 const { default: agentRoutes } = await import('./src/routes/agents')
-const { default: matchRoutes } = await import('./src/routes/matches')
+const { default: matchRoutes, initScheduler } = await import('./src/routes/matches')
 
 app.use('/api/agents',  agentRoutes)
 app.use('/api/matches', matchRoutes)
@@ -49,4 +49,5 @@ export { io }
 
 server.listen(process.env.PORT ?? 3001, () => {
   console.log(`Orchestrator running on :${process.env.PORT ?? 3001}`)
+  initScheduler(io)
 })
