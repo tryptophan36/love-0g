@@ -1,7 +1,16 @@
-import { ethers } from "hardhat";
+import hre from "hardhat";
+
+const { ethers } = hre;
 
 async function main() {
-  const [deployer] = await ethers.getSigners();
+  const signers = await ethers.getSigners();
+  if (signers.length === 0) {
+    throw new Error(
+      "No deployer account found. Set PRIVATE_KEY in .env (64 hex chars, with or without 0x)."
+    );
+  }
+
+  const [deployer] = signers;
   console.log("Deploying with:", deployer.address);
 
   const balance = await ethers.provider.getBalance(deployer.address);
@@ -28,6 +37,18 @@ async function main() {
   const reputationAddress = await reputation.getAddress();
   console.log("Reputation deployed to:", reputationAddress);
 
+  // Deploy MatchEscrow
+  console.log("\n--- Deploying MatchEscrow ---");
+  const MatchEscrow = await ethers.getContractFactory("MatchEscrow");
+  const matchEscrow = await MatchEscrow.deploy(
+    deployer.address, // orchestrator
+    deployer.address, // protocol fee recipient
+    30 * 60 // 30 minute join timeout
+  );
+  await matchEscrow.waitForDeployment();
+  const matchEscrowAddress = await matchEscrow.getAddress();
+  console.log("MatchEscrow deployed to:", matchEscrowAddress);
+
   console.log("\n========================================");
   console.log("Deployment complete!");
   console.log("========================================");
@@ -37,6 +58,8 @@ async function main() {
   console.log(`INFT_CONTRACT=${agenticIdAddress}`);
   console.log(`REPUTATION_CONTRACT=${reputationAddress}`);
   console.log(`NEXT_PUBLIC_REPUTATION_CONTRACT=${reputationAddress}`);
+  console.log(`MATCH_CONTRACT=${matchEscrowAddress}`);
+  console.log(`NEXT_PUBLIC_MATCH_CONTRACT=${matchEscrowAddress}`);
 }
 
 main().catch((error) => {
