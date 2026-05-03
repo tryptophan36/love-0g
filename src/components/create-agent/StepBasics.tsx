@@ -52,6 +52,14 @@ export function StepBasics({ basics, setBasics, onNext }: StepBasicsProps) {
           </div>
         </Field>
 
+        <Field q="Profile image URL (optional)">
+          <TextInput
+            value={basics.imageUrl}
+            onChange={set('imageUrl')}
+            placeholder="https://.../image.png"
+          />
+        </Field>
+
         <Field q="How old are they?">
           <div className="flex gap-2 flex-wrap">
             {AGE_RANGES.map(a => (

@@ -72,6 +72,7 @@ export function RevealScreen({
           systemPrompt,
           // profile fields — forwarded so the orchestrator can use them in LLM context
           avatar:     basics.avatar,
+          imageUrl:   basics.imageUrl,
           age:        basics.age,
           gender:     basics.gender,
           origin:     basics.origin,
@@ -105,7 +106,15 @@ export function RevealScreen({
           }`}
         >
           <div className="flex items-center gap-3 mb-6">
-            <span className="text-4xl">{basics.avatar || '🤖'}</span>
+            {basics.imageUrl ? (
+              <img
+                src={basics.imageUrl}
+                alt={`${basics.name || 'Agent'} profile`}
+                className="w-14 h-14 rounded-xl object-cover border border-og-border"
+              />
+            ) : (
+              <span className="text-4xl">{basics.avatar || '🤖'}</span>
+            )}
             <div>
               <h1 className="text-2xl font-bold text-white">{basics.name}</h1>
               {(basics.age || basics.gender || basics.origin) && (
@@ -152,7 +161,7 @@ export function RevealScreen({
             <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 text-emerald-400 text-sm">
               Agent minted — iNFT #{tokenId} on 0G Chain.{' '}
               <a
-                href={`https://chainscan-galileo.0g.ai/token/${process.env.NEXT_PUBLIC_INFT_CONTRACT}/${tokenId}`}
+                href={`https://chainscan-galileo.0g.ai/token/${process.env.NEXT_PUBLIC_INFT_CONTRACT}`}
                 target="_blank"
                 className="underline underline-offset-2 hover:text-emerald-300 transition-colors"
               >
