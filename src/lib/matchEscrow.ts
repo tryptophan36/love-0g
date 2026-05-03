@@ -209,7 +209,30 @@ export function extractCreatedMatchIdFromReceipt(
   return null;
 }
 
-type GetMatchResult = [
+// ABI for the current deployment (no logRoot — 11 static fields = 352 bytes)
+const getMatchNoLogRootAbi = [
+  {
+    type: "function",
+    name: "getMatch",
+    stateMutability: "view",
+    inputs: [{ name: "matchId", type: "uint256" }],
+    outputs: [
+      { name: "chooser",         type: "address"  },
+      { name: "chooserAgentId",  type: "uint256"  },
+      { name: "fee",             type: "uint96"   },
+      { name: "maxContestants",  type: "uint32"   },
+      { name: "seatsTaken",      type: "uint32"   },
+      { name: "createdAt",       type: "uint64"   },
+      { name: "joinDeadline",    type: "uint64"   },
+      { name: "status",          type: "uint8"    },
+      { name: "proofHash",       type: "bytes32"  },
+      { name: "winnerAgentId",   type: "uint256"  },
+      { name: "runnerUpAgentId", type: "uint256"  },
+    ],
+  },
+] as const satisfies Abi;
+
+type GetMatchNoLogRootResult = [
   chooser: Address,
   chooserAgentId: bigint,
   fee: bigint,
@@ -241,77 +264,43 @@ export async function readMatchOnChain(matchId: bigint) {
   }
 
   const nBytes = returnDataByteLength(data);
-  let row: GetMatchResult;
 
-  if (nBytes === 352) {
-    row = decodeFunctionResult({
+  // ≥ 384 bytes: new contract with logRoot (dynamic string adds offset word to head)
+  if (nBytes >= 384) {
+    const row = decodeFunctionResult({
       abi: matchEscrowAbi,
       functionName: "getMatch",
       data,
-    }) as GetMatchResult;
-  } else if (nBytes === 320) {
+    }) as readonly [Address, bigint, bigint, number, number, bigint, bigint, number, `0x${string}`, bigint, bigint, string];
+    const [chooser, chooserAgentId, fee, maxContestants, seatsTaken, createdAt, joinDeadline, status, proofHash, winnerAgentId, runnerUpAgentId, logRoot] = row;
+    return { chooser, chooserAgentId, fee, maxContestants, seatsTaken, createdAt, joinDeadline, status, proofHash, winnerAgentId, runnerUpAgentId, logRoot };
+  }
+
+  // 352 bytes: previous deployment (chooserAgentId present, no logRoot)
+  if (nBytes === 352) {
+    const row = decodeFunctionResult({
+      abi: getMatchNoLogRootAbi,
+      functionName: "getMatch",
+      data,
+    }) as GetMatchNoLogRootResult;
+    const [chooser, chooserAgentId, fee, maxContestants, seatsTaken, createdAt, joinDeadline, status, proofHash, winnerAgentId, runnerUpAgentId] = row;
+    return { chooser, chooserAgentId, fee, maxContestants, seatsTaken, createdAt, joinDeadline, status, proofHash, winnerAgentId, runnerUpAgentId, logRoot: '' };
+  }
+
+  // 320 bytes: oldest legacy deployment (no chooserAgentId, no logRoot)
+  if (nBytes === 320) {
     const legacy = decodeFunctionResult({
       abi: getMatchLegacyAbi,
       functionName: "getMatch",
       data,
-    }) as readonly [
-      Address,
-      bigint,
-      number,
-      number,
-      bigint,
-      bigint,
-      number,
-      `0x${string}`,
-      bigint,
-      bigint,
-    ];
-    row = [
-      legacy[0],
-      0n,
-      legacy[1],
-      legacy[2],
-      legacy[3],
-      legacy[4],
-      legacy[5],
-      legacy[6],
-      legacy[7],
-      legacy[8],
-      legacy[9],
-    ];
-  } else {
-    throw new Error(
-      `Unexpected getMatch return length (${nBytes} bytes). Redeploy MatchEscrow or update the client ABI.`
-    );
+    }) as readonly [Address, bigint, number, number, bigint, bigint, number, `0x${string}`, bigint, bigint];
+    const [chooser, fee, maxContestants, seatsTaken, createdAt, joinDeadline, status, proofHash, winnerAgentId, runnerUpAgentId] = legacy;
+    return { chooser, chooserAgentId: BigInt(0), fee, maxContestants, seatsTaken, createdAt, joinDeadline, status, proofHash, winnerAgentId, runnerUpAgentId, logRoot: '' };
   }
 
-  const [
-    chooser,
-    chooserAgentId,
-    fee,
-    maxContestants,
-    seatsTaken,
-    createdAt,
-    joinDeadline,
-    status,
-    proofHash,
-    winnerAgentId,
-    runnerUpAgentId,
-  ] = row;
-  return {
-    chooser,
-    chooserAgentId,
-    fee,
-    maxContestants,
-    seatsTaken,
-    createdAt,
-    joinDeadline,
-    status,
-    proofHash,
-    winnerAgentId,
-    runnerUpAgentId,
-    raw: row,
-  };
+  throw new Error(
+    `Unexpected getMatch return length (${nBytes} bytes). Redeploy MatchEscrow or update the client ABI.`
+  );
 }
 
 export type AgentMatchStatus = {
