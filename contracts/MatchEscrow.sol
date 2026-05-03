@@ -16,11 +16,12 @@ contract MatchEscrow is Ownable, ReentrancyGuard {
     uint256 private constant BPS_DENOMINATOR = 10000;
 
     enum MatchStatus {
-        OPEN,
-        FULL,
-        RUNNING,
-        SETTLED,
-        CANCELLED
+        OPEN,       // 0
+        FULL,       // 1
+        RUNNING,    // 2
+        SETTLED,    // 3
+        CANCELLED,  // 4
+        FAILED      // 5 — engine crashed; retryMatch() resets to FULL
     }
 
     struct Contestant {
@@ -85,6 +86,8 @@ contract MatchEscrow is Ownable, ReentrancyGuard {
         uint256         chooserAgentId
     );
     event MatchStarted(uint256 indexed matchId);
+    event MatchFailed(uint256 indexed matchId);
+    event MatchRetried(uint256 indexed matchId);
     event MatchSettled(
         uint256 indexed matchId,
         uint256         winnerAgentId,
@@ -147,7 +150,7 @@ contract MatchEscrow is Ownable, ReentrancyGuard {
         uint8   maxSeats,
         uint256 agentId
     ) external payable nonReentrant returns (uint256 matchId) {
-        if (maxSeats != 2 && maxSeats != 3) revert InvalidContestantLimit();
+        if (maxSeats == 0 || maxSeats > 3) revert InvalidContestantLimit();
         if (msg.value == 0) revert InvalidFee();
         if (inftContract.ownerOf(agentId) != msg.sender) revert NotYourAgent();
 
@@ -205,6 +208,22 @@ contract MatchEscrow is Ownable, ReentrancyGuard {
         emit MatchStarted(matchId);
     }
 
+    /// @notice Mark a RUNNING match as FAILED (called by orchestrator on engine crash).
+    function failMatch(uint256 matchId) external onlyOrchestrator {
+        MatchData storage m = _getMatch(matchId);
+        if (m.status != MatchStatus.RUNNING) revert InvalidStatus();
+        m.status = MatchStatus.FAILED;
+        emit MatchFailed(matchId);
+    }
+
+    /// @notice Reset a FAILED match back to FULL so the scheduler can restart it.
+    function retryMatch(uint256 matchId) external onlyOrchestrator {
+        MatchData storage m = _getMatch(matchId);
+        if (m.status != MatchStatus.FAILED) revert InvalidStatus();
+        m.status = MatchStatus.FULL;
+        emit MatchRetried(matchId);
+    }
+
     /// @notice Settle a match — winner/runner-up are now agentIds, not wallet indices.
     function settleMatch(
         uint256 matchId,
@@ -216,12 +235,11 @@ contract MatchEscrow is Ownable, ReentrancyGuard {
         if (m.status != MatchStatus.RUNNING) revert InvalidStatus();
 
         address winnerWallet   = inftContract.ownerOf(winnerAgentId);
-        address runnerUpWallet = inftContract.ownerOf(runnerUpAgentId);
 
-        m.status         = MatchStatus.SETTLED;
-        m.winnerAgentId  = winnerAgentId;
+        m.status          = MatchStatus.SETTLED;
+        m.winnerAgentId   = winnerAgentId;
         m.runnerUpAgentId = runnerUpAgentId;
-        m.proofHash      = proofHash;
+        m.proofHash       = proofHash;
 
         // Clear agent match tracking
         agentCurrentMatch[m.chooserAgentId] = 0;
@@ -232,10 +250,16 @@ contract MatchEscrow is Ownable, ReentrancyGuard {
         uint256 pot = uint256(m.fee) * (uint256(m.seatsTaken) + 1); // contestants + chooser
         PayoutAmounts memory payout = _calculatePayouts(pot);
 
-        _safeTransferEth(winnerWallet,           payout.winnerAmount);
-        _safeTransferEth(m.chooser,              payout.chooserAmount);
-        _safeTransferEth(runnerUpWallet,         payout.runnerUpAmount);
-        _safeTransferEth(protocolFeeRecipient,   payout.protocolAmount);
+        bool hasRunnerUp = runnerUpAgentId != 0;
+
+        // If no runner-up (1-contestant match), fold their share into winner
+        _safeTransferEth(winnerWallet, payout.winnerAmount + (hasRunnerUp ? 0 : payout.runnerUpAmount));
+        _safeTransferEth(m.chooser, payout.chooserAmount);
+        if (hasRunnerUp) {
+            address runnerUpWallet = inftContract.ownerOf(runnerUpAgentId);
+            _safeTransferEth(runnerUpWallet, payout.runnerUpAmount);
+        }
+        _safeTransferEth(protocolFeeRecipient, payout.protocolAmount);
 
         emit MatchSettled(matchId, winnerAgentId, runnerUpAgentId, proofHash);
     }
@@ -256,6 +280,24 @@ contract MatchEscrow is Ownable, ReentrancyGuard {
             uint256 id = allMatchIds[i];
             if (matchesById[id].status == MatchStatus.FULL) {
                 fullMatchIds[writeIdx++] = id;
+            }
+        }
+    }
+
+    function getAllRunningMatches() external view returns (uint256[] memory runningMatchIds) {
+        uint256 count = 0;
+        uint256 total = allMatchIds.length;
+
+        for (uint256 i = 0; i < total; i++) {
+            if (matchesById[allMatchIds[i]].status == MatchStatus.RUNNING) count++;
+        }
+
+        runningMatchIds = new uint256[](count);
+        uint256 writeIdx = 0;
+        for (uint256 i = 0; i < total; i++) {
+            uint256 id = allMatchIds[i];
+            if (matchesById[id].status == MatchStatus.RUNNING) {
+                runningMatchIds[writeIdx++] = id;
             }
         }
     }

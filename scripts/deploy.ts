@@ -41,9 +41,10 @@ async function main() {
   console.log("\n--- Deploying MatchEscrow ---");
   const MatchEscrow = await ethers.getContractFactory("MatchEscrow");
   const matchEscrow = await MatchEscrow.deploy(
-    deployer.address, // orchestrator
+    deployer.address, // orchestrator — call setOrchestrator if your signer differs
     deployer.address, // protocol fee recipient
-    30 * 60 // 30 minute join timeout
+    30 * 60, // 30 minute join timeout (seconds)
+    agenticIdAddress // iNFT contract (required by MatchEscrow)
   );
   await matchEscrow.waitForDeployment();
   const matchEscrowAddress = await matchEscrow.getAddress();
