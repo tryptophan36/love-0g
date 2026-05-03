@@ -1,5 +1,6 @@
 import type { Agent, ChooserState } from '@/app/orchestrator/src/types'
 import { AgentAvatar } from '@/components/arena/AgentAvatar'
+import { AgentBriefDetails } from '@/components/arena/AgentBriefDetails'
 
 type Props = { chooser: Agent | null; state: ChooserState | null }
 
@@ -24,6 +25,7 @@ export function ChooserPanel({ chooser, state }: Props) {
           </span>
         )}
       </div>
+      <AgentBriefDetails agent={chooser} />
       {state?.chooserMessage && (
         <p className="text-sm text-og-text italic leading-relaxed border-l-2 border-amber-400/40 pl-3">
           &ldquo;{state.chooserMessage}&rdquo;

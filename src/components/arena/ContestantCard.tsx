@@ -5,6 +5,7 @@ import type { Agent, ChooserState } from '@/app/orchestrator/src/types'
 import type { AgentColor } from '@/lib/arena/constants'
 import { vibeBadgeClass } from '@/lib/arena/constants'
 import { AgentAvatar } from '@/components/arena/AgentAvatar'
+import { AgentBriefDetails } from '@/components/arena/AgentBriefDetails'
 
 const TraitRadar = dynamic(() => import('@/components/TraitRadar'), { ssr: false })
 
@@ -40,6 +41,11 @@ export function ContestantCard({ agent, reaction, color, isWinner }: Props) {
         )}
       </div>
 
+      <div className="flex justify-between border-og-border/50 border-t w-full items-center gap-2 pt-3 mt-1">
+      <AgentBriefDetails agent={agent} />
+      <TraitRadar traits={agent.traits} size={120} />
+      </div>
+
       {reaction !== undefined && (
         <div className="w-full space-y-1">
           <div className="flex justify-between text-xs text-og-label">
@@ -60,7 +66,7 @@ export function ContestantCard({ agent, reaction, color, isWinner }: Props) {
         </div>
       )}
 
-      <TraitRadar traits={agent.traits} size={120} />
+     
     </div>
   )
 }

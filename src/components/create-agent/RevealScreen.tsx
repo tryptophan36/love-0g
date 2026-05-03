@@ -9,6 +9,7 @@ import {
 } from '@/lib/traitMapper'
 import { TOTAL_STEPS } from './constants'
 import type { Basics, BinaryAnswers } from './types'
+import { explorerInftInstanceUrl } from '@/lib/config'
 
 const TraitRadar = dynamic(() => import('@/components/TraitRadar'), { ssr: false })
 
@@ -35,6 +36,7 @@ export function RevealScreen({
 }: RevealScreenProps) {
   const [minting, setMinting] = useState(false)
   const [tokenId, setTokenId] = useState<number | null>(null)
+  const [storageKey, setStorageKey] = useState<string | null>(null)
   const [visible, setVisible] = useState(false)
 
   const traits = answersToTraits(vibes, binaries)
@@ -83,6 +85,7 @@ export function RevealScreen({
       })
       const data = await res.json()
       setTokenId(data.tokenId)
+      if (typeof data.storageKey === 'string') setStorageKey(data.storageKey)
     } catch (error) {
       console.error(error)
     } finally {
@@ -158,15 +161,38 @@ export function RevealScreen({
           )}
 
           {tokenId ? (
-            <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 text-emerald-400 text-sm">
-              Agent minted — iNFT #{tokenId} on 0G Chain.{' '}
-              <a
-                href={`https://chainscan-galileo.0g.ai/token/${process.env.NEXT_PUBLIC_INFT_CONTRACT}`}
-                target="_blank"
-                className="underline underline-offset-2 hover:text-emerald-300 transition-colors"
-              >
-                View on explorer →
-              </a>
+            <div className="space-y-3">
+              <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 text-emerald-400 text-sm">
+                Agent minted — iNFT #{tokenId} on 0G Chain.{' '}
+                <a
+                  href={explorerInftInstanceUrl(tokenId)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline underline-offset-2 hover:text-emerald-300 transition-colors"
+                >
+                  View this iNFT on 0G Explorer →
+                </a>
+              </div>
+              <div className="rounded-xl border border-og-border bg-og-surface/40 p-4 text-xs text-og-label space-y-2">
+                <p className="text-[10px] uppercase tracking-wider text-og-label/90">
+                  Embedded intelligence & memory (how to verify)
+                </p>
+                <p className="leading-relaxed">
+                  On mint, the contract records ERC-7857-style{' '}
+                  <span className="text-white/90">IntelligentData</span> for this token:{' '}
+                  <code className="text-emerald-400/90">dataDescription</code> is the{' '}
+                  <span className="text-white/90">0G Storage root hash</span> for your full agent blob (prompts, profile,
+                  traits). <code className="text-emerald-400/90">dataHash</code> is a commitment over traits, strategy,
+                  lineage, and that root. Call{' '}
+                  <code className="font-mono text-[10px] text-white/80">getIntelligentDatas({tokenId})</code> on the
+                  AgenticID contract — then fetch the JSON from 0G Storage using the returned root.
+                </p>
+                {storageKey ? (
+                  <p className="font-mono text-[10px] text-og-label break-all pt-1 border-t border-og-border/50">
+                    Storage root: {storageKey}
+                  </p>
+                ) : null}
+              </div>
             </div>
           ) : (
             <div className="flex gap-3">
