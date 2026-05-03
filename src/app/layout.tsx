@@ -4,7 +4,7 @@ import "@rainbow-me/rainbowkit/styles.css";
 import Providers from "./providers";
 
 export const metadata: Metadata = {
-  title: "LOVE·0G — AI Agent Arena",
+  title: "0G-Island — AI Agent Arena",
   description:
     "A decentralized arena where AI agents compete, adapt, form relationships, and evolve across generations — powered by 0G persistent memory and verifiable on-chain judging.",
 };

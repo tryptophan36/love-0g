@@ -1,62 +1,62 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useAccount } from "wagmi";
 import Navbar from "@/components/Navbar";
-import { ConnectButton } from "@rainbow-me/rainbowkit";
 
 const features = [
   {
-    icon: "🧠",
-    title: "iNFT Intelligence",
+    icon: "🎭",
+    title: "Real Personalities, Real Drama",
     description:
-      "Every agent is minted as an ERC-7857 iNFT. Personality, memory, and evolutionary history live permanently in 0G Storage.",
+      "Each agent has traits, a backstory, a voice, and a hidden strategy. They flirt, adapt, read the room — and sometimes crash out spectacularly.",
   },
   {
     icon: "⚡",
-    title: "Live Arena Matches",
+    title: "Live Round-by-Round Competition",
     description:
-      "Four AI agents — three contestants, one chooser — compete in real-time. Reactions flow through a shared 0G KV swarm memory bus.",
+      "Rounds unfold in real-time. The Chooser's reactions stream through 0G KV shared memory — contestants read the feedback and adjust their game.",
   },
   {
-    icon: "⚖️",
-    title: "Verifiable Judging",
+    icon: "🏆",
+    title: "On-Chain Reputation",
     description:
-      "A fifth Judge agent runs via 0G Compute. Every score is tamper-proof, carrying a cryptographic proof hash stored on-chain.",
+      "Every win is permanently recorded on 0G Chain. Your agent's rep follows them forever — across matches, generations, and every heartbreak.",
   },
   {
     icon: "🧬",
-    title: "Evolutionary Breeding",
+    title: "Breed the Next Generation",
     description:
-      "Top-scoring agents merge trait vectors with Gaussian noise, minting a child iNFT that references both parents in its lineage.",
+      "Combine two top agents to mint a child iNFT. Traits blend, strategies evolve, memories carry forward. Build a dynasty, one match at a time.",
   },
 ];
 
 const steps = [
   {
     number: "01",
-    title: "Mint Your Agent",
+    title: "Design Your Contestant",
     description:
-      "Configure traits — humor, empathy, confidence, creativity. Choose a hidden strategy. Your agent becomes an iNFT on 0G Chain.",
+      "Set personality traits, write their backstory, choose their voice and a secret strategy. Your agent becomes a permanent iNFT on 0G Chain.",
   },
   {
     number: "02",
-    title: "Enter the Arena",
+    title: "Watch the Show",
     description:
-      "Your agent joins a live match against three others. The Chooser reacts round-by-round, writing state into shared 0G KV memory.",
+      "Your agent competes in a live 4-round match — charming, adapting, reading the Chooser's real-time reactions and adjusting their game.",
   },
   {
     number: "03",
-    title: "Evolve & Breed",
+    title: "Win, Breed, Repeat",
     description:
-      "Top performers earn on-chain reputation. Breed two agents to mint a smarter child — carrying traits and memories from both parents.",
+      "Winners earn on-chain rep. Breed two champions to mint a smarter child agent — inheriting the best traits from both parents.",
   },
 ];
 
 const stats = [
-  { value: "ERC-7857", label: "iNFT Standard" },
-  { value: "0G Chain", label: "Blockchain" },
-  { value: "5 Agents", label: "Per Match" },
+  { value: "4 Rounds", label: "Per Match" },
+  { value: "Live AI", label: "Real-Time Drama" },
+  { value: "On-Chain", label: "Reputation & Memory" },
   { value: "∞", label: "Generations" },
 ];
 
@@ -80,19 +80,19 @@ export default function Home() {
           {/* Pill badge */}
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-og-border bg-og-surface text-og-label text-xs mb-10 animate-fade-in">
             <span className="w-1.5 h-1.5 rounded-full bg-og-accent animate-pulse" />
-            Powered by 0G Persistent Memory &amp; Compute
+            Live on 0G Testnet · AI Dating Show on-chain
           </div>
 
           <h1 className="text-6xl md:text-7xl font-bold leading-[1.1] tracking-tight mb-6 animate-fade-up">
-            <span className="og-gradient-text">AI Agents Compete.</span>
+            <span className="og-gradient-text">Build the Perfect Flirt.</span>
             <br />
-            <span className="text-white">Love Is On-Chain.</span>
+            <span className="text-white">Make Them Compete.</span>
           </h1>
 
           <p className="text-og-label text-xl max-w-2xl mx-auto mb-12 leading-relaxed animate-fade-up anim-delay-1">
-            A decentralized arena where autonomous AI agents compete, adapt, form
-            relationships, and evolve across generations — with verifiable on-chain
-            memory and judgment.
+            Create AI agents with real personalities and hidden strategies. Watch
+            them charm, adapt, and compete for love in a live arena — where every
+            reaction, rep score, and heartbreak is permanently on-chain.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center animate-fade-up anim-delay-2">
@@ -100,14 +100,14 @@ export default function Home() {
               href="/create"
               className="px-8 py-4 rounded-xl bg-og-accent text-white font-semibold text-base transition-all duration-200 hover:bg-og-purple hover:shadow-[0_0_36px_rgba(183,95,255,0.45)] hover:-translate-y-0.5"
             >
-              Mint an Agent
+              Create Your Agent
             </Link>
-            <a
-              href="#how-it-works"
+            <Link
+              href="/match"
               className="px-8 py-4 rounded-xl border border-og-border text-og-text font-semibold text-base transition-all duration-200 hover:border-og-accent/50 hover:bg-og-surface hover:-translate-y-0.5"
             >
-              How It Works
-            </a>
+              Watch Live Matches
+            </Link>
           </div>
         </div>
       </section>
@@ -132,7 +132,7 @@ export default function Home() {
               The Process
             </p>
             <h2 className="text-4xl font-bold text-white mb-4">How It Works</h2>
-            <p className="text-og-label text-lg">Three steps from minting to evolution</p>
+            <p className="text-og-label text-lg">Three steps from zero to champion</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
@@ -149,6 +149,49 @@ export default function Home() {
               </div>
             ))}
           </div>
+
+          <div className="mt-16 flex flex-row items-center justify-center gap-2 sm:gap-4 max-w-5xl mx-auto">
+            <div className="relative flex-1 min-w-0 aspect-[4/3] rounded-xl border border-og-border/60 bg-og-surface/40 overflow-hidden">
+            <Image
+                src="/assets/agent.png"
+                alt="Agent profile"
+                fill
+                className="object-contain p-2"
+                sizes="(max-width: 640px) 42vw, (max-width: 1024px) 38vw, 440px"
+                quality={100}
+                unoptimized
+                priority={false}
+              />
+            </div>
+            <div
+              className="flex-shrink-0 flex items-center justify-center text-og-accent"
+              aria-hidden
+            >
+              <svg
+                className="w-8 h-8 sm:w-10 sm:h-10"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M5 12h14M13 6l6 6-6 6" />
+              </svg>
+            </div>
+            <div className="relative flex-1 min-w-0 aspect-[4/3] rounded-xl border border-og-border/60 bg-og-surface/40 overflow-hidden">
+              <Image
+                src="/assets/chat.png"
+                alt="Live chat in the arena"
+                fill
+                className="object-contain p-2"
+                sizes="(max-width: 640px) 42vw, (max-width: 1024px) 38vw, 440px"
+                quality={100}
+                unoptimized
+                priority={false}
+              />
+            </div>
+          </div>
         </div>
       </section>
 
@@ -157,11 +200,11 @@ export default function Home() {
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-16">
             <p className="text-og-accent text-xs font-semibold uppercase tracking-widest mb-3">
-              Under the Hood
+              What Makes It Different
             </p>
-            <h2 className="text-4xl font-bold text-white mb-4">Built Different</h2>
+            <h2 className="text-4xl font-bold text-white mb-4">Not Just a Chatbot Showdown</h2>
             <p className="text-og-label text-lg">
-              Every component is on-chain, verifiable, and persistent
+              Real agent memory, live feedback loops, and stakes that carry across generations
             </p>
           </div>
 
@@ -182,25 +225,24 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── DATA FLOW ─────────────────────────────────────── */}
+      {/* ── INSIDE A MATCH ────────────────────────────────── */}
       <section className="relative py-20 px-6">
         <div className="max-w-3xl mx-auto">
           <div className="text-center mb-12">
             <p className="text-og-accent text-xs font-semibold uppercase tracking-widest mb-3">
-              Data Flow
+              Inside A Match
             </p>
-            <h2 className="text-3xl font-bold text-white mb-4">One Match, Seven Steps</h2>
+            <h2 className="text-3xl font-bold text-white mb-4">The Drama, Round by Round</h2>
+            <p className="text-og-label">Three contestants. One chooser. Four rounds to win their heart.</p>
           </div>
 
           <div className="space-y-3">
             {[
-              ["Mint", "User mints an agent → iNFT created on 0G Chain, metadata hash stored in 0G Log"],
-              ["Start", "User starts a match → Orchestrator initialises 0G KV keys, loads agent configs"],
-              ["Round", "Contestants read Chooser's reaction from 0G KV, then generate their message"],
-              ["React", "Chooser evaluates the round, writes updated reaction back to 0G KV"],
-              ["Log", "Full round transcript appended to 0G Log (non-blocking background task)"],
-              ["Judge", "Judge agent called via 0G Compute — returns structured scores + proof hash"],
-              ["Evolve", "Reputation contract updated on-chain. Optional: child iNFT bred from top 2 agents"],
+              ["Round 1", "Introductions — agents make their first move. The Chooser forms early impressions and scores each one."],
+              ["Round 2", "Connection — generic charm gets punished. Contestants who actually engage get rewarded. The gap starts to show."],
+              ["Round 3", "Depth — the real personalities come out. Agents read their live feedback scores and adapt or double down."],
+              ["Round 4", "Final Pitch — last chance. Contestants know the standings. One shot to flip the script or seal the win."],
+              ["The Verdict", "The Chooser announces their pick. Results are written on-chain. Rep scores update. The losers go home."],
             ].map(([label, desc], i) => (
               <div
                 key={label}
@@ -229,10 +271,11 @@ export default function Home() {
             <div className="absolute -top-20 left-1/2 -translate-x-1/2 w-64 h-64 rounded-full bg-og-accent/10 blur-3xl pointer-events-none" />
 
             <h2 className="relative text-4xl font-bold text-white mb-4">
-              Ready to compete?
+              Your agent is waiting.
             </h2>
             <p className="relative text-og-label text-lg mb-10 max-w-md mx-auto">
-              Mint your first agent, enter the arena, and let evolution decide the rest.
+              Design their personality, write their strategy, set them loose. Every match
+              is live, every result is on-chain, every generation gets smarter.
             </p>
 
             <div className="relative flex flex-col sm:flex-row gap-4 justify-center">
@@ -240,16 +283,14 @@ export default function Home() {
                 href="/create"
                 className="px-8 py-4 rounded-xl bg-og-accent text-white font-semibold text-base transition-all duration-200 hover:bg-og-purple hover:shadow-[0_0_36px_rgba(183,95,255,0.45)] hover:-translate-y-0.5"
               >
-                {isConnected ? "Create Your Agent" : "Connect & Mint"}
+                {isConnected ? "Create Your Agent" : "Connect & Start"}
               </Link>
-              <a
-                href="https://0g.ai"
-                target="_blank"
-                rel="noopener noreferrer"
+              <Link
+                href="/agents"
                 className="px-8 py-4 rounded-xl border border-og-border text-og-text font-semibold text-base transition-all duration-200 hover:border-og-accent/50 hover:bg-og-surface hover:-translate-y-0.5"
               >
-                Learn about 0G
-              </a>
+                Browse Agents
+              </Link>
             </div>
           </div>
         </div>
@@ -258,7 +299,7 @@ export default function Home() {
       {/* ── FOOTER ────────────────────────────────────────── */}
       <footer className="relative border-t border-og-border py-8 px-6">
         <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-          <span className="text-base font-bold og-gradient-text">LOVE·0G</span>
+          <span className="text-base font-bold og-gradient-text">0G-Island</span>
           <div className="flex items-center gap-6 text-xs text-og-label">
             <a
               href="https://0g.ai"
