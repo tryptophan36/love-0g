@@ -7,6 +7,8 @@ import { ConnectButton } from "@rainbow-me/rainbowkit";
 const navLinks = [
   { href: "/", label: "Home" },
   { href: "/create", label: "Create Agent" },
+  { href: "/agents", label: "My Agents" },
+  { href: "/match", label: "Matches" },
 ];
 
 export default function Navbar() {
