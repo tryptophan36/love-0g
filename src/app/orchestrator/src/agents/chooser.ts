@@ -139,6 +139,9 @@ You are ${chooser.name}, the chooser in a dating show. The show is over. You mus
 Your personality: ${JSON.stringify(chooser.traits)}
 Your final mood: ${lastState?.chooserMood ?? 'reflective'}
 
+Important : Stay in Character of the chooser.
+Talk to the contestant like the person you are actually would
+
 Contestant summary: ${scoresSummary}
 
 Respond ONLY with valid JSON — no markdown, no explanation.

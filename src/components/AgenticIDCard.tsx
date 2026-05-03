@@ -8,6 +8,7 @@ import {
   useWaitForTransactionReceipt,
 } from "wagmi";
 import { agenticIdAbi } from "../lib/abi";
+import { explorerInftInstanceUrl } from "@/lib/config";
 
 function truncateAddress(addr: string): string {
   if (!addr || addr.length < 10) return addr;
@@ -240,6 +241,14 @@ export default function AgenticIDCard({
             <p className="text-xs text-[#5A5A6E] font-mono">
               ID #{tokenId.toString()}
             </p>
+            <a
+              href={explorerInftInstanceUrl(Number(tokenId))}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-og-accent hover:underline"
+            >
+              View on 0G Explorer →
+            </a>
           </div>
           {displayModel && (
             <span

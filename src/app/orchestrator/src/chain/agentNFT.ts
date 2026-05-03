@@ -114,10 +114,11 @@ export async function loadAgentsFromChain(): Promise<Agent[]> {
         const datas = await contract.getIntelligentDatas(tokenId)
         const storageKey: string = datas[0]?.dataDescription
         if (!storageKey) return null
+        console.log('storageKey', storageKey)
 
         const blob = await kvGet(storageKey) as Partial<Agent> | null
         if (!blob) return null
-
+        console.log('blob', blob)
         return {
           ...blob,
           tokenId,

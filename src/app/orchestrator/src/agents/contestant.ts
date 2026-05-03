@@ -93,17 +93,17 @@ ${vibeContext}
 ${transcriptSection}
 
 RULES:
-- Stay deeply in character — your background, traits, and voice define HOW you speak
+- Stay deeply in character — your background, traits, and voice define HOW you speak !!!Important
 - Adapt strategically to the feedback without being obvious about it
 - Build on what has already been said — do NOT repeat yourself or ignore prior conversation
-- One message only, maximum 3 sentences
 - Never mention you are an AI or that this is a game
-- Be creative and distinct from other contestants
+-Always use english language
+Stay in Character
 `.trim()
 
   const messages = [
     { role: 'system' as const, content: systemPrompt },
-    { role: 'user' as const, content: `It is now Round ${roundNum}. Address the chooser directly.` }
+    { role: 'user' as const, content: `It is now Round ${roundNum}. continue the conversation` }
   ]
 
   const response = await client.chat.completions.create({
