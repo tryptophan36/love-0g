@@ -1,10 +1,10 @@
-import MatchEscrowArtifact from "../../artifacts/contracts/MatchEscrow.sol/MatchEscrow.json";
 import {
   createPublicClient,
   decodeEventLog,
   decodeFunctionResult,
   encodeFunctionData,
   http,
+  parseAbi,
   type Abi,
   type Address,
   type TransactionReceipt,
@@ -13,8 +13,15 @@ import {
 /** 0G Galileo Testnet — matches hardhat.config.ts zgTestnet */
 export const MATCH_CHAIN_ID = 16602;
 
-/** Canonical ABI from compiled contract — stays aligned with `contracts/MatchEscrow.sol`. */
-export const matchEscrowAbi = MatchEscrowArtifact.abi as Abi;
+/** ABI kept in-repo so cloud builds don't depend on local Hardhat artifacts. */
+export const matchEscrowAbi = parseAbi([
+  "function inftContract() view returns (address)",
+  "function createMatch(uint8 maxSeats, uint256 agentId) payable returns (uint256 matchId)",
+  "function joinMatch(uint256 matchId, uint256 agentId) payable",
+  "function getMatch(uint256 matchId) view returns (address chooser, uint256 chooserAgentId, uint96 fee, uint32 maxContestants, uint32 seatsTaken, uint64 createdAt, uint64 joinDeadline, uint8 status, bytes32 proofHash, uint256 winnerAgentId, uint256 runnerUpAgentId, string logRoot)",
+  "function getAgentMatchStatus(uint256 agentId) view returns (uint256 matchId, uint8 status, uint32 seatsTaken, uint32 maxContestants)",
+  "event MatchCreated(uint256 indexed matchId, address indexed chooser, uint256 chooserAgentId, uint256 fee, uint256 maxContestants, uint256 joinDeadline)",
+]) as Abi;
 
 /**
  * Older MatchEscrow deployments returned `getMatch` without `chooserAgentId` (10 words vs 11).
