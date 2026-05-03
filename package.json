@@ -10,6 +10,7 @@
     "start": "next start",
     "compile": "hardhat compile",
     "deploy:testnet": "hardhat run scripts/deploy.ts --network zgTestnet",
+    "deploy:reputation": "hardhat run scripts/deploy-reputation.ts --network zgTestnet",
     "install:all": "npm install && npm install --prefix src/app/orchestrator"
   },
   "dependencies": {
