@@ -41,6 +41,7 @@ contract MatchEscrow is Ownable, ReentrancyGuard {
         bytes32 proofHash;
         uint256 winnerAgentId;
         uint256 runnerUpAgentId;
+        string  logRoot;        // 0G Storage content root — download full match blob from here
         Contestant[] contestants;
     }
 
@@ -92,7 +93,8 @@ contract MatchEscrow is Ownable, ReentrancyGuard {
         uint256 indexed matchId,
         uint256         winnerAgentId,
         uint256         runnerUpAgentId,
-        bytes32         proofHash
+        bytes32         proofHash,
+        string          logRoot
     );
     event MatchCancelled(uint256 indexed matchId, bytes32 reason);
     event OrchestratorUpdated(address indexed newOrchestrator);
@@ -225,11 +227,13 @@ contract MatchEscrow is Ownable, ReentrancyGuard {
     }
 
     /// @notice Settle a match — winner/runner-up are now agentIds, not wallet indices.
+    /// @param logRoot  0G Storage content root for the full match transcript blob.
     function settleMatch(
         uint256 matchId,
         uint256 winnerAgentId,
         uint256 runnerUpAgentId,
-        bytes32 proofHash
+        bytes32 proofHash,
+        string calldata logRoot
     ) external onlyOrchestrator nonReentrant {
         MatchData storage m = _getMatch(matchId);
         if (m.status != MatchStatus.RUNNING) revert InvalidStatus();
@@ -240,6 +244,7 @@ contract MatchEscrow is Ownable, ReentrancyGuard {
         m.winnerAgentId   = winnerAgentId;
         m.runnerUpAgentId = runnerUpAgentId;
         m.proofHash       = proofHash;
+        m.logRoot         = logRoot;
 
         // Clear agent match tracking
         agentCurrentMatch[m.chooserAgentId] = 0;
@@ -261,7 +266,7 @@ contract MatchEscrow is Ownable, ReentrancyGuard {
         }
         _safeTransferEth(protocolFeeRecipient, payout.protocolAmount);
 
-        emit MatchSettled(matchId, winnerAgentId, runnerUpAgentId, proofHash);
+        emit MatchSettled(matchId, winnerAgentId, runnerUpAgentId, proofHash, logRoot);
     }
 
     // ── View functions ────────────────────────────────────────────────────────
@@ -320,7 +325,8 @@ contract MatchEscrow is Ownable, ReentrancyGuard {
             MatchStatus status,
             bytes32     proofHash,
             uint256     winnerAgentId,
-            uint256     runnerUpAgentId
+            uint256     runnerUpAgentId,
+            string      memory logRoot
         )
     {
         MatchData storage m = _getMatch(matchId);
@@ -335,7 +341,8 @@ contract MatchEscrow is Ownable, ReentrancyGuard {
             m.status,
             m.proofHash,
             m.winnerAgentId,
-            m.runnerUpAgentId
+            m.runnerUpAgentId,
+            m.logRoot
         );
     }
 

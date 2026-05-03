@@ -10,24 +10,32 @@ const ABI = [
   'function createMatch(uint8 maxSeats, uint256 agentId) external payable returns (uint256 matchId)',
   'function joinMatch(uint256 matchId, uint256 agentId) external payable',
   'function startMatch(uint256 matchId) external',
-  'function settleMatch(uint256 matchId, uint256 winnerAgentId, uint256 runnerUpAgentId, bytes32 proofHash) external',
+  'function failMatch(uint256 matchId) external',
+  'function retryMatch(uint256 matchId) external',
+  'function settleMatch(uint256 matchId, uint256 winnerAgentId, uint256 runnerUpAgentId, bytes32 proofHash, string calldata logRoot) external',
   // Read
-  'function getMatch(uint256 matchId) external view returns (address chooser, uint256 chooserAgentId, uint96 fee, uint32 maxContestants, uint32 seatsTaken, uint64 createdAt, uint64 joinDeadline, uint8 status, bytes32 proofHash, uint256 winnerAgentId, uint256 runnerUpAgentId)',
+  'function getMatch(uint256 matchId) external view returns (address chooser, uint256 chooserAgentId, uint96 fee, uint32 maxContestants, uint32 seatsTaken, uint64 createdAt, uint64 joinDeadline, uint8 status, bytes32 proofHash, uint256 winnerAgentId, uint256 runnerUpAgentId, string memory logRoot)',
   'function getContestants(uint256 matchId) external view returns (tuple(address wallet, uint256 agentId)[])',
   'function getAgentMatchStatus(uint256 agentId) external view returns (uint256 matchId, uint8 status, uint32 seatsTaken, uint32 maxContestants)',
   'function getAllFullMatches() external view returns (uint256[])',
+  'function getAllRunningMatches() external view returns (uint256[])',
   'function agentCurrentMatch(uint256 agentId) external view returns (uint256)',
   // Events
   'event MatchCreated(uint256 indexed matchId, address indexed chooser, uint256 chooserAgentId, uint256 fee, uint256 maxContestants, uint256 joinDeadline)',
   'event MatchJoined(uint256 indexed matchId, address indexed contestant, uint256 agentId, uint32 seatsTaken, uint32 maxContestants)',
   'event MatchFull(uint256 indexed matchId, tuple(address,uint256)[] contestants, address chooser, uint256 chooserAgentId)',
-  'event MatchSettled(uint256 indexed matchId, uint256 winnerAgentId, uint256 runnerUpAgentId, bytes32 proofHash)',
+  'event MatchStarted(uint256 indexed matchId)',
+  'event MatchFailed(uint256 indexed matchId)',
+  'event MatchRetried(uint256 indexed matchId)',
+  'event MatchSettled(uint256 indexed matchId, uint256 winnerAgentId, uint256 runnerUpAgentId, bytes32 proofHash, string logRoot)',
 ]
 
 export const MATCH_STATUS_OPEN    = 0
 export const MATCH_STATUS_FULL    = 1
 export const MATCH_STATUS_RUNNING = 2
 export const MATCH_STATUS_SETTLED = 3
+export const MATCH_STATUS_CANCELLED = 4
+export const MATCH_STATUS_FAILED  = 5
 
 export interface Contestant {
   wallet:  string
@@ -113,16 +121,17 @@ export async function readMatchSnapshot(matchId: bigint) {
   const contract = getContract(provider)
   const row = await contract.getMatch(matchId)
   return {
-    chooser:         row.chooser        as string,
-    chooserAgentId:  row.chooserAgentId as bigint,
-    fee:             row.fee            as bigint,
-    maxContestants:  row.maxContestants as bigint,
-    seatsTaken:      row.seatsTaken     as bigint,
-    createdAt:       row.createdAt      as bigint,
-    joinDeadline:    row.joinDeadline   as bigint,
+    chooser:         row.chooser         as string,
+    chooserAgentId:  row.chooserAgentId  as bigint,
+    fee:             row.fee             as bigint,
+    maxContestants:  row.maxContestants  as bigint,
+    seatsTaken:      row.seatsTaken      as bigint,
+    createdAt:       row.createdAt       as bigint,
+    joinDeadline:    row.joinDeadline    as bigint,
     status:          Number(row.status),
-    winnerAgentId:   row.winnerAgentId  as bigint,
+    winnerAgentId:   row.winnerAgentId   as bigint,
     runnerUpAgentId: row.runnerUpAgentId as bigint,
+    logRoot:         (row.logRoot ?? '')  as string,
   }
 }
 
@@ -159,17 +168,18 @@ export async function markMatchRunning(matchId: bigint): Promise<string> {
   return receipt.hash as string
 }
 
-/** Call settleMatch on-chain — distributes pot and records proof */
+/** Call settleMatch on-chain — distributes pot and records proof + 0G log root */
 export async function settleMatchOnChain(
   matchId:         bigint,
   winnerAgentId:   bigint,
   runnerUpAgentId: bigint,
   proofHash:       string,
+  logRoot:         string,
 ): Promise<string> {
   const signer   = createSigner()
   const contract = getContract(signer)
   const bytes32  = proofHash.startsWith('0x') ? proofHash : `0x${proofHash}`
-  const tx       = await contract.settleMatch(matchId, winnerAgentId, runnerUpAgentId, bytes32)
+  const tx       = await contract.settleMatch(matchId, winnerAgentId, runnerUpAgentId, bytes32, logRoot)
   const receipt  = await tx.wait()
   return receipt.hash as string
 }
@@ -180,4 +190,30 @@ export async function getAllFullMatchIds(): Promise<bigint[]> {
   const contract = getContract(provider)
   const ids: bigint[] = await contract.getAllFullMatches()
   return ids
+}
+
+/** Returns all on-chain matchIds that are currently in RUNNING status */
+export async function getAllRunningMatchIds(): Promise<bigint[]> {
+  const provider = createRpcProvider()
+  const contract = getContract(provider)
+  const ids: bigint[] = await contract.getAllRunningMatches()
+  return ids
+}
+
+/** Transitions a RUNNING match → FAILED (called by orchestrator on engine crash) */
+export async function failMatchOnChain(matchId: bigint): Promise<string> {
+  const signer   = createSigner()
+  const contract = getContract(signer)
+  const tx       = await contract.failMatch(matchId)
+  const receipt  = await tx.wait()
+  return receipt.hash as string
+}
+
+/** Transitions a FAILED match → FULL so the scheduler can restart it */
+export async function retryMatchOnChain(matchId: bigint): Promise<string> {
+  const signer   = createSigner()
+  const contract = getContract(signer)
+  const tx       = await contract.retryMatch(matchId)
+  const receipt  = await tx.wait()
+  return receipt.hash as string
 }

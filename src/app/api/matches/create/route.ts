@@ -8,7 +8,7 @@ import {
  * POST /api/matches/create
  * Returns a wallet transaction payload for the chooser to sign (createMatch + deposit fee).
  *
- * Body: { feeWei: string (decimal wei), maxSeats: number (2 or 3), agentId: string | number }
+ * Body: { feeWei: string (decimal wei), maxSeats: number (1–3), agentId: string | number }
  * Response: { to, data, value, chainId }
  */
 export async function POST(req: NextRequest) {
@@ -55,9 +55,9 @@ export async function POST(req: NextRequest) {
     }
 
     const maxSeats = Number(maxRaw);
-    if (maxSeats !== 2 && maxSeats !== 3) {
+    if (maxSeats !== 1 && maxSeats !== 2 && maxSeats !== 3) {
       return NextResponse.json(
-        { error: "maxSeats must be 2 or 3" },
+        { error: "maxSeats must be 1, 2, or 3" },
         { status: 400 }
       );
     }

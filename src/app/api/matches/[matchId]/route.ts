@@ -61,6 +61,7 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
         chooserAgentId: snapshot.chooserAgentId.toString(),
         winnerAgentId: snapshot.winnerAgentId.toString(),
         runnerUpAgentId: snapshot.runnerUpAgentId.toString(),
+        logRoot: snapshot.logRoot ?? '',
       },
     });
   } catch (e) {

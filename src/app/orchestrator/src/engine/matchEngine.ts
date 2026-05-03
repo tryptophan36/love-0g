@@ -3,7 +3,7 @@ import { ethers } from 'ethers'
 import type { Match, Message, ChooserState } from '../types.js'
 import { runContestantTurn } from '../agents/contestant.js'
 import { evaluateRound, runChooserDecision } from '../agents/chooser.js'
-import { runJudge } from '../agents/judge.js'
+// import { runJudge } from '../agents/judge.js'
 import { writeChooserState, readChooserReaction, readChooserState } from '../storage/og-kv.js'
 import { appendMatchLog, appendRoundLog } from '../storage/og-log.js'
 import { updateReputation } from '../chain/reputation.js'
@@ -41,7 +41,9 @@ export class MatchEngine extends EventEmitter {
           : null   // Round 1: no feedback yet — neutral intro
 
         const content = await runContestantTurn(
-          agent, reaction, this.match.messages, round
+          agent, reaction, this.match.messages, round,
+          this.match.contestants,
+          this.match.chooser,
         )
 
         const message: Message = {
@@ -67,6 +69,7 @@ export class MatchEngine extends EventEmitter {
         roundMessages,
         round,
         prevState,
+        this.match.messages,   // full conversation history so the chooser has all context
       )
 
       // ── 3. Emit chooser's spoken message for this round ──
@@ -107,42 +110,42 @@ export class MatchEngine extends EventEmitter {
     this.match.decision = decision
     this.emit('chooser_decision', { matchId: this.match.id, decision })
 
-    // ── 7. Judge evaluation ──
-    this.match.status = 'judging'
-    this.emit('status', { matchId: this.match.id, status: 'judging' })
-    this.match.scores = await runJudge(
-      this.match.contestants, this.match.chooser, this.match.messages
-    )
+    // ── 7. Judge evaluation (disabled — separate Judge agent / scoring) ──
+    // this.match.status = 'judging'
+    // this.emit('status', { matchId: this.match.id, status: 'judging' })
+    // this.match.scores = await runJudge(
+    //   this.match.contestants, this.match.chooser, this.match.messages
+    // )
 
-    // ── 8. Determine winner and runner-up ──
-    const sorted     = [...this.match.scores].sort((a, b) => b.total - a.total)
-    const winnerScore    = sorted[0]
-    const runnerUpScore  = sorted[1]
+    // ── 8. Winner / runner-up from chooser decision only (was: sorted judge scores) ──
+    this.match.scores = []
+    const winnerAgent = this.match.contestants.find(c => c.id === decision.pickedAgentId)
+    if (!winnerAgent) {
+      throw new Error(`Chooser picked unknown agent id=${decision.pickedAgentId}`)
+    }
+    const runnerUpAgent = this.match.contestants.find(c => c.id !== winnerAgent.id)
 
-    const winnerAgent   = this.match.contestants.find(c => c.id === winnerScore.agentId)!
-    const runnerUpAgent = runnerUpScore
-      ? this.match.contestants.find(c => c.id === runnerUpScore.agentId)
-      : undefined
-
-    this.match.winnerId      = winnerAgent.id
-    this.match.winnerTokenId = winnerAgent.tokenId
+    this.match.winnerId        = winnerAgent.id
+    this.match.winnerTokenId   = winnerAgent.tokenId
     this.match.runnerUpTokenId = runnerUpAgent?.tokenId ?? null
-    this.match.status = 'complete'
+    this.match.status          = 'complete'
 
     // ── 9. Write full match log to 0G Log Store ──
     this.match.ogLogHash = await appendMatchLog(this.match)
 
-    // ── 10. Settle on-chain (pay out winner/chooser/runner-up) ──
+    // ── 10. Settle on-chain (pay out winner / chooser / runner-up) ──
     if (this.match.onChainMatchId) {
       try {
+        const logRoot   = this.match.ogLogHash ?? ''
         const proofHash = ethers.keccak256(
-          ethers.toUtf8Bytes(this.match.ogLogHash ?? this.match.id)
+          ethers.toUtf8Bytes(logRoot || this.match.id)
         )
         await settleMatchOnChain(
           BigInt(this.match.onChainMatchId),
           BigInt(this.match.winnerTokenId),
           BigInt(this.match.runnerUpTokenId ?? 0),
           proofHash,
+          logRoot,
         )
       } catch (err) {
         console.error(`settleMatchOnChain failed for match ${this.match.id}:`, err)

@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import { Server as SocketServer } from 'socket.io'
 import { MatchEngine } from '../engine/matchEngine.js'
-import type { Agent, Match } from '../types.js'
+import type { Match } from '../types.js'
 import {
   encodeCreateMatchTx,
   encodeJoinMatchTx,
@@ -9,12 +9,14 @@ import {
   MATCH_STATUS_FULL,
   preflightAgentOwnershipForMatchTx,
   readMatchSnapshot,
-  readMatchContestants,
   markMatchRunning,
   getAllFullMatchIds,
+  getAllRunningMatchIds,
+  failMatchOnChain,
 } from '../chain/matchEscrow.js'
-import { loadAgentByTokenId } from '../chain/agentNFT.js'
+import { loadAgentsForOnChainMatch } from '../chain/loadMatchAgents.js'
 import { initMatchKV } from '../storage/og-kv.js'
+import { tryHydrateMatchFromStorage } from '../storage/hydrate-match.js'
 
 const router = Router()
 
@@ -23,37 +25,6 @@ const runningMatches = new Set<string>()
 const activeMatches: Record<string, Match> = {}
 
 // ─── Helpers ────────────────────────────────────────────────────────────────────
-
-async function loadAgentsForOnChainMatch(onChainMatchId: bigint): Promise<{
-  contestants: Agent[]
-  chooser:     Agent
-} | null> {
-  const [snapshot, contestantRows] = await Promise.all([
-    readMatchSnapshot(onChainMatchId),
-    readMatchContestants(onChainMatchId),
-  ])
-
-  const [chooser, ...rest] = await Promise.all([
-    loadAgentByTokenId(Number(snapshot.chooserAgentId)),
-    ...contestantRows.map(c => loadAgentByTokenId(Number(c.agentId))),
-  ])
-
-  if (!chooser) {
-    console.error(`Could not load chooser agent tokenId=${snapshot.chooserAgentId}`)
-    return null
-  }
-
-  const contestants = rest.filter((a): a is Agent => a !== null)
-  if (contestants.length !== contestantRows.length) {
-    console.warn(`Some contestant agents failed to load for match ${onChainMatchId}`)
-  }
-  if (contestants.length === 0) {
-    console.error(`No contestant agents loaded for match ${onChainMatchId}`)
-    return null
-  }
-
-  return { contestants, chooser }
-}
 
 async function startMatchFlow(onChainMatchId: bigint, io: SocketServer): Promise<void> {
   const matchKey = onChainMatchId.toString()
@@ -103,8 +74,20 @@ async function startMatchFlow(onChainMatchId: bigint, io: SocketServer): Promise
     // ── Emit match_started ──
     io.to(`match:${matchKey}`).emit('match_started', {
       matchId: matchKey,
-      contestants: agents.contestants.map(a => ({ id: a.id, name: a.name, tokenId: a.tokenId })),
-      chooser:     { id: agents.chooser.id, name: agents.chooser.name, tokenId: agents.chooser.tokenId },
+      contestants: agents.contestants.map(a => ({
+        id: a.id,
+        name: a.name,
+        tokenId: a.tokenId,
+        traits: a.traits,
+        profile: a.profile,
+      })),
+      chooser: {
+        id: agents.chooser.id,
+        name: agents.chooser.name,
+        tokenId: agents.chooser.tokenId,
+        traits: agents.chooser.traits,
+        profile: agents.chooser.profile,
+      },
     })
 
     // ── Wire engine events → Socket.io room ──
@@ -127,6 +110,9 @@ async function startMatchFlow(onChainMatchId: bigint, io: SocketServer): Promise
       .catch(err => {
         console.error(`Match engine error for ${matchKey}:`, err)
         runningMatches.delete(matchKey)
+        failMatchOnChain(BigInt(matchKey)).catch(e =>
+          console.error(`failMatchOnChain failed for ${matchKey}:`, e)
+        )
       })
 
   } catch (err) {
@@ -136,11 +122,100 @@ async function startMatchFlow(onChainMatchId: bigint, io: SocketServer): Promise
   }
 }
 
+/**
+ * Resume a match that is already RUNNING on-chain (e.g. after process restart).
+ * Skips markMatchRunning. Retries the engine once — if it fails again, marks FAILED.
+ */
+async function resumeMatchFlow(onChainMatchId: bigint, io: SocketServer): Promise<void> {
+  const matchKey = onChainMatchId.toString()
+  if (runningMatches.has(matchKey)) return
+  runningMatches.add(matchKey)
+
+  try {
+    const agents = await loadAgentsForOnChainMatch(onChainMatchId)
+    if (!agents) {
+      runningMatches.delete(matchKey)
+      return
+    }
+
+    const match: Match = {
+      id:              matchKey,
+      onChainMatchId:  matchKey,
+      contestants:     agents.contestants,
+      chooser:         agents.chooser,
+      status:          'pending',
+      currentRound:    0,
+      totalRounds:     4,
+      messages:        [],
+      scores:          [],
+      winnerId:        null,
+      winnerTokenId:   null,
+      runnerUpTokenId: null,
+      decision:        null,
+      ogLogHash:       null,
+      createdAt:       Date.now(),
+    }
+    activeMatches[matchKey] = match
+
+    const engine = new MatchEngine(match)
+    const fwd = (event: string) =>
+      engine.on(event, (data) => io.to(`match:${matchKey}`).emit(event, data))
+
+    fwd('status'); fwd('round_start'); fwd('message')
+    fwd('chooser_message'); fwd('chooser_state'); fwd('chooser_decision'); fwd('complete')
+
+    engine.run()
+      .then(() => { runningMatches.delete(matchKey) })
+      .catch(err => {
+        console.error(`Resume failed for match ${matchKey}:`, err)
+        runningMatches.delete(matchKey)
+        // One retry exhausted — mark FAILED on-chain
+        failMatchOnChain(BigInt(matchKey)).catch(e =>
+          console.error(`failMatchOnChain (after resume) failed for ${matchKey}:`, e)
+        )
+      })
+
+  } catch (err) {
+    console.error(`resumeMatchFlow failed for ${matchKey}:`, err)
+    runningMatches.delete(matchKey)
+    failMatchOnChain(BigInt(matchKey)).catch(console.error)
+  }
+}
+
 // ─── Scheduler ──────────────────────────────────────────────────────────────────
+
+const FIVE_MINUTES_MS = 5 * 60 * 1000
 
 export function initScheduler(io: SocketServer): void {
   async function poll() {
     try {
+      // ── 1. Handle RUNNING matches not tracked by this process ─────────────
+      // Could be a process restart or a match that slipped through.
+      // Policy: if created within last 5 min → retry once via resumeMatchFlow.
+      //         if older → stuck, mark FAILED immediately.
+      const runningIds = await getAllRunningMatchIds()
+      
+      for (const matchId of runningIds) {
+        const matchKey = matchId.toString()
+        if (runningMatches.has(matchKey)) continue
+
+        try {
+          const snapshot = await readMatchSnapshot(matchId)
+          const ageMs = Date.now() - Number(snapshot.createdAt) * 1000
+
+          if (ageMs <= FIVE_MINUTES_MS) {
+            console.log(`Retrying recent RUNNING match ${matchKey} (age ${Math.round(ageMs / 1000)}s)`)
+            resumeMatchFlow(matchId, io).catch(console.error)
+          } else {
+            console.log(`Failing stuck RUNNING match ${matchKey} (age ${Math.round(ageMs / 1000)}s)`)
+            await failMatchOnChain(matchId)
+          }
+        } catch (err) {
+          console.error(`Error handling stuck RUNNING match ${matchKey}:`, err)
+        }
+      }
+
+      // ── 2. Start any FULL matches (normal path) ────────────────────────────
       const fullIds = await getAllFullMatchIds()
       console.log('fullIds', fullIds)
       for (const matchId of fullIds) {
@@ -161,7 +236,7 @@ export function initScheduler(io: SocketServer): void {
 
 // ─── Routes ─────────────────────────────────────────────────────────────────────
 
-/** POST body: { feeWei: string, maxSeats: 2|3, agentId: string } → wallet tx payload */
+/** POST body: { feeWei: string, maxSeats: 1|2|3, agentId: string } → wallet tx payload */
 router.post('/create', (req, res) => {
   try {
     const feeRaw   = req.body?.feeWei ?? req.body?.fee
@@ -189,8 +264,8 @@ router.post('/create', (req, res) => {
     }
 
     const maxSeats = Number(maxRaw)
-    if (maxSeats !== 2 && maxSeats !== 3) {
-      res.status(400).json({ error: 'maxSeats must be 2 or 3' }); return
+    if (maxSeats !== 1 && maxSeats !== 2 && maxSeats !== 3) {
+      res.status(400).json({ error: 'maxSeats must be 1, 2, or 3' }); return
     }
 
     res.json(encodeCreateMatchTx(feeWei, maxSeats, agentId))
@@ -301,10 +376,22 @@ router.post('/start', async (req, res) => {
   res.json({ matchId: matchKey, started: true })
 })
 
-router.get('/:id', (req, res) => {
-  const match = activeMatches[req.params.id]
-  if (!match) return res.status(404).json({ error: 'Match not found or not yet started' })
-  res.json(match)
+router.get('/:id', async (req, res) => {
+  const id = req.params.id
+  const live = activeMatches[id]
+  if (live) {
+    res.json(live)
+    return
+  }
+
+  const rehydrated = await tryHydrateMatchFromStorage(id)
+  if (rehydrated) {
+    if (rehydrated.status === 'complete') activeMatches[id] = rehydrated
+    res.json(rehydrated)
+    return
+  }
+
+  res.status(404).json({ error: 'Match not found or not yet started' })
 })
 
 export default router
