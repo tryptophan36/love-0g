@@ -1,6 +1,13 @@
-/** Matches `MatchEscrow.MatchStatus` enum order. */
+/** Matches `MatchEscrow.MatchStatus` enum order (0–5). */
 export function matchStatusLabel(status: number): string {
-  const labels = ["Open", "Full", "Running", "Settled", "Cancelled"] as const;
+  const labels = [
+    "Open",
+    "Full",
+    "Running",
+    "Settled",
+    "Cancelled",
+    "Failed",
+  ] as const;
   return labels[status] ?? `Unknown (${status})`;
 }
 
@@ -13,9 +20,11 @@ export function matchStatusBadgeClassName(status: number): string {
     case 2:
       return "bg-sky-500/15 text-sky-400 border-sky-500/30";
     case 3:
-      return "bg-og-surface text-og-light border-og-border";
+      return "bg-emerald-500/10 text-emerald-300 border-emerald-500/25";
     case 4:
       return "bg-red-500/15 text-red-400 border-red-500/30";
+    case 5:
+      return "bg-violet-500/15 text-violet-300 border-violet-500/35";
     default:
       return "bg-og-surface text-og-label border-og-border";
   }

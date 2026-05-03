@@ -181,7 +181,7 @@ export function encodeJoinMatchTx(params: {
   };
 }
 
-/** MatchStatus: OPEN=0, FULL=1, RUNNING=2, SETTLED=3, CANCELLED=4 */
+/** MatchStatus: OPEN=0, FULL=1, RUNNING=2, SETTLED=3, CANCELLED=4, FAILED=5 */
 export const MATCH_STATUS_OPEN = 0;
 
 /** Parses `MatchCreated` from a successful `createMatch` receipt. */
