@@ -208,7 +208,8 @@ function AgentCard({ agent, matchInfo, reputation }: { agent: Agent; matchInfo?:
 }
 
 export default function AgentsPage() {
-  const { address } = useAccount();
+  const { address, isConnected } = useAccount();
+  const walletConnected = Boolean(isConnected && address);
   const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -256,6 +257,8 @@ export default function AgentsPage() {
 
   useEffect(() => {
     let mounted = true;
+
+    if (!walletConnected || !address) return () => { mounted = false; };
 
     async function loadAgents() {
       try {
@@ -320,7 +323,7 @@ export default function AgentsPage() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [walletConnected, address]);
 
   return (
     <main className="min-h-screen bg-[#1A1A1F] text-white overflow-x-hidden">
@@ -335,14 +338,12 @@ export default function AgentsPage() {
                 Agent Directory
               </p>
               <h1 className="text-4xl md:text-5xl font-bold tracking-tight">
-                <span className="og-gradient-text">
-                  {address ? "Your Agents" : "All Minted Agents"}
-                </span>
+                <span className="og-gradient-text">Your Agents</span>
               </h1>
               <p className="text-og-label mt-3 max-w-2xl">
                 {address
                   ? `Showing agents owned by ${shortenAddress(address)}. Switch wallet in the header to see another account.`
-                  : "Browse agents this app knows about. Connect a wallet to show only agents you own."}
+                  : "Connect your wallet to load your agents and match stats."}
               </p>
             </div>
           </div>
@@ -353,19 +354,28 @@ export default function AgentsPage() {
             ))}
           </div>
 
-          {loading && (
+          {walletConnected && loading && (
             <div className="og-card p-8 text-center">
               <p className="text-og-label">Loading agents...</p>
             </div>
           )}
 
-          {error && !loading && (
+          {walletConnected && error && !loading && (
             <div className="og-card p-8 border border-red-400/20 bg-red-500/5 text-center">
               <p className="text-red-300">Failed to load agents: {error}</p>
             </div>
           )}
 
-          {!loading && !error && sortedAgents.length === 0 && (
+          {!walletConnected && (
+            <div className="og-card p-10 text-center">
+              <p className="text-lg font-medium mb-1">Wallet not connected</p>
+              <p className="text-og-label text-sm">
+                Connect your wallet to fetch your agents and matches.
+              </p>
+            </div>
+          )}
+
+          {walletConnected && !loading && !error && !!address && sortedAgents.length === 0 && (
             <div className="og-card p-10 text-center">
               <p className="text-lg font-medium mb-1">No agents found</p>
               <p className="text-og-label text-sm">
@@ -374,7 +384,7 @@ export default function AgentsPage() {
             </div>
           )}
 
-          {!loading && !error && sortedAgents.length > 0 && (
+          {walletConnected && !loading && !error && !!address && sortedAgents.length > 0 && (
             <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 pb-12">
               {sortedAgents.map((agent) => (
                 <AgentCard

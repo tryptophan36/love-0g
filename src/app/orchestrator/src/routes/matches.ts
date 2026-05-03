@@ -228,10 +228,10 @@ export function initScheduler(io: SocketServer): void {
     }
   }
 
-  // First poll immediately, then every minute
+  // First poll immediately, then every hour
   poll()
-  setInterval(poll, 60_000)
-  console.log('Match scheduler started (60s interval)')
+  setInterval(poll, 3_600_000)
+  console.log('Match scheduler started (1h interval)')
 }
 
 // ─── Routes ─────────────────────────────────────────────────────────────────────
