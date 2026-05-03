@@ -254,7 +254,7 @@ router.post('/create', (req, res) => {
     try { feeWei = BigInt(feeRaw) } catch {
       res.status(400).json({ error: 'feeWei must be a valid wei integer' }); return
     }
-    if (feeWei <= 0n) {
+    if (feeWei <= BigInt(0)) {
       res.status(400).json({ error: 'feeWei must be positive' }); return
     }
 
@@ -288,7 +288,7 @@ router.post('/join', async (req, res) => {
     try { matchId = BigInt(matchIdRaw) } catch {
       res.status(400).json({ error: 'matchId must be an integer' }); return
     }
-    if (matchId <= 0n) { res.status(400).json({ error: 'matchId must be positive' }); return }
+    if (matchId <= BigInt(0)) { res.status(400).json({ error: 'matchId must be positive' }); return }
 
     let agentId: bigint
     try { agentId = BigInt(agentRaw) } catch {
