@@ -19,7 +19,7 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-6 py-3.5 flex items-center justify-between">
         <div className="flex items-center gap-10">
           <Link href="/" className="flex items-center gap-2.5">
-            <span className="text-xl font-bold tracking-tight og-gradient-text">LOVE·0G</span>
+            <span className="text-xl font-bold tracking-tight og-gradient-text">0G-Island</span>
             <span className="text-[10px] text-og-label bg-og-surface px-2 py-0.5 rounded-full border border-og-border uppercase tracking-wider">
               Beta
             </span>

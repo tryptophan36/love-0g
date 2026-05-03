@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useAccount } from "wagmi";
 import Navbar from "@/components/Navbar";
+import { explorerInftInstanceUrl } from "@/lib/config";
 import { matchStatusLabel, matchStatusBadgeClassName } from "@/lib/matchStatus";
 
 interface TraitVector {
@@ -47,6 +48,12 @@ interface AgentMatchInfo {
   maxContestants: number;
 }
 
+interface ReputationInfo {
+  reputationScore: number;
+  matchesPlayed:   number;
+  wins:            number;
+}
+
 type Stat = {
   label: string;
   value: number;
@@ -64,11 +71,10 @@ function shortenAddress(value: string): string {
   return `${value.slice(0, 6)}...${value.slice(-4)}`;
 }
 
-function winRate(agent: Agent): number {
-  const wins = agent.wins ?? 0;
-  const losses = agent.losses ?? 0;
-  const total = wins + losses;
-  return total > 0 ? Math.round((wins / total) * 100) : 0;
+function winRate(agent: Agent, reputation?: ReputationInfo): number {
+  const wins   = reputation?.wins ?? agent.wins ?? 0;
+  const played = reputation?.matchesPlayed ?? (wins + (agent.losses ?? 0));
+  return played > 0 ? Math.round((wins / played) * 100) : 0;
 }
 
 function dateLabel(createdAt: number): string {
@@ -129,12 +135,19 @@ function MatchStatusChip({ info }: { info: AgentMatchInfo | undefined }) {
   );
 }
 
-function AgentCard({ agent, matchInfo }: { agent: Agent; matchInfo?: AgentMatchInfo }) {
+function AgentCard({ agent, matchInfo, reputation }: { agent: Agent; matchInfo?: AgentMatchInfo; reputation?: ReputationInfo }) {
+  const onChainWins    = reputation?.wins ?? agent.wins ?? 0;
+  const onChainPlayed  = reputation?.matchesPlayed ?? (onChainWins + (agent.losses ?? 0));
+  const onChainLosses  = onChainPlayed - onChainWins;
+  const repScore       = reputation?.reputationScore;
+
   const quickStats: FieldItem[] = [
-    { label: "Owner",    value: shortenAddress(agent.owner) },
-    { label: "Win Rate", value: `${winRate(agent)}%` },
-    { label: "Record",   value: `${agent.wins ?? 0}W / ${agent.losses ?? 0}L` },
-    { label: "Created",  value: dateLabel(agent.createdAt), span: "triple" },
+    { label: "Owner",       value: shortenAddress(agent.owner) },
+    { label: "Win Rate",    value: `${winRate(agent, reputation)}%` },
+    { label: "Record",      value: `${onChainWins}W / ${onChainLosses}L` },
+    { label: "Matches",     value: String(onChainPlayed) },
+    { label: "Reputation",  value: repScore !== undefined ? String(repScore) : "—" },
+    { label: "Created",     value: dateLabel(agent.createdAt), span: "triple" },
   ];
 
   const profileFields: FieldItem[] = [
@@ -167,6 +180,14 @@ function AgentCard({ agent, matchInfo }: { agent: Agent; matchInfo?: AgentMatchI
           <div>
             <h2 className="text-xl font-semibold leading-tight">{agent.name || "Unnamed Agent"}</h2>
             <p className="text-xs text-og-label mt-1">Token #{agent.tokenId}</p>
+            <a
+              href={explorerInftInstanceUrl(agent.tokenId)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-og-accent hover:underline mt-0.5 inline-block"
+            >
+              View iNFT on 0G Explorer →
+            </a>
           </div>
         </div>
         <span className="text-xs px-2.5 py-1 rounded-full border border-og-border bg-og-surface text-og-label">
@@ -192,6 +213,7 @@ export default function AgentsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [matchStatuses, setMatchStatuses] = useState<Record<string, AgentMatchInfo>>({});
+  const [reputations, setReputations] = useState<Record<string, ReputationInfo>>({});
 
   /** Orchestrator returns every agent it is authorized to manage; scope UI to the connected wallet. */
   const myAgents = useMemo(() => {
@@ -208,13 +230,19 @@ export default function AgentsPage() {
   );
 
   const totalWins = useMemo(
-    () => myAgents.reduce((sum, agent) => sum + (agent.wins ?? 0), 0),
-    [myAgents]
+    () => myAgents.reduce((sum, agent) => {
+      const rep = reputations[String(agent.tokenId)];
+      return sum + (rep?.wins ?? agent.wins ?? 0);
+    }, 0),
+    [myAgents, reputations]
   );
 
   const totalMatches = useMemo(
-    () => myAgents.reduce((sum, agent) => sum + (agent.wins ?? 0) + (agent.losses ?? 0), 0),
-    [myAgents]
+    () => myAgents.reduce((sum, agent) => {
+      const rep = reputations[String(agent.tokenId)];
+      return sum + (rep?.matchesPlayed ?? (agent.wins ?? 0) + (agent.losses ?? 0));
+    }, 0),
+    [myAgents, reputations]
   );
 
   const stats: Stat[] = useMemo(
@@ -245,28 +273,38 @@ export default function AgentsPage() {
         const agentList: Agent[] = Array.isArray(data) ? data : [];
         if (mounted) setAgents(agentList);
 
-        // Batch-fetch match status for all agents that have a tokenId
+        // Batch-fetch match status and reputation for all agents that have a tokenId
         const tokenIds = agentList
           .map((a) => a.tokenId)
           .filter((id) => typeof id === "number" && id > 0);
 
         if (tokenIds.length > 0) {
-          try {
-            const msRes = await fetch("/api/agents/match-status", {
+          const [msResult, repResult] = await Promise.allSettled([
+            fetch("/api/agents/match-status", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ tokenIds }),
               cache: "no-store",
-            });
-            if (msRes.ok) {
-              const msData = await msRes.json();
-              if (mounted) setMatchStatuses(msData ?? {});
-            }
-          } catch {
-            // Non-fatal — match status is enrichment only
+            }),
+            fetch("/api/agents/reputation", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ tokenIds }),
+              cache: "no-store",
+            }),
+          ]);
+
+          if (msResult.status === "fulfilled" && msResult.value.ok && mounted) {
+            const msData = await msResult.value.json();
+            setMatchStatuses(msData ?? {});
+          }
+          if (repResult.status === "fulfilled" && repResult.value.ok && mounted) {
+            const repData = await repResult.value.json();
+            setReputations(repData ?? {});
           }
         } else if (mounted) {
           setMatchStatuses({});
+          setReputations({});
         }
       } catch (err) {
         if (mounted) {
@@ -343,6 +381,7 @@ export default function AgentsPage() {
                   key={agent.id}
                   agent={agent}
                   matchInfo={matchStatuses[String(agent.tokenId)]}
+                  reputation={reputations[String(agent.tokenId)]}
                 />
               ))}
             </div>

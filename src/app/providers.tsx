@@ -15,7 +15,7 @@ const walletConnectProjectId =
   process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ?? "";
 
 const wagmiConfig = getDefaultConfig({
-  appName: "LOVE·0G",
+  appName: "0G-Island",
   projectId: walletConnectProjectId,
   chains: [zgTestnet],
   ssr: true,
