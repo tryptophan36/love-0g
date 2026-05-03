@@ -1,9 +1,29 @@
 import OpenAI from 'openai'
 import type { Agent, ChooserState, ChooserDecision, Message } from '../types.js'
 
+function labelFor(agentId: string, chooser: Agent, contestants: Agent[]): string {
+  if (agentId === chooser.id) return `Chooser (${chooser.name})`
+  const idx = contestants.findIndex(c => c.id === agentId)
+  const name = idx >= 0 ? contestants[idx].name : agentId
+  return `Contestant-${idx + 1} (${name})`
+}
+
+function formatTranscript(messages: Message[], chooser: Agent, contestants: Agent[]): string {
+  return messages
+    .map(m => `[R${m.round}] ${labelFor(m.agentId, chooser, contestants)}: "${m.content}"`)
+    .join('\n')
+}
+
+const ROUND_DESCRIPTIONS: Record<number, string> = {
+  1: 'Round 1 — Introduction: Contestants are introducing themselves for the first time. Form your initial impressions.',
+  2: 'Round 2 — Connection: Contestants are trying to connect with you through real conversation. Who is actually engaging vs. being generic?',
+  3: 'Round 3 — Depth: Contestants are showing their true selves and going deeper. Notice who feels genuine.',
+  4: 'Round 4 — Final Pitch: This is their last chance to win you over. Who made the strongest lasting impression?',
+}
+
 const client = new OpenAI({
-  baseURL: `${process.env.ZG_SERVICE_URL}/v1/proxy`,
-  apiKey:  process.env.ZG_API_SECRET,
+  baseURL: 'https://router-api-testnet.integratenetwork.work/v1',
+  apiKey:  process.env.ZG_API_SECRET ?? '',
 })
 
 export async function evaluateRound(
@@ -11,23 +31,40 @@ export async function evaluateRound(
   contestants: Agent[],
   roundMessages: Message[],
   roundNum: number,
-  previousState: ChooserState | null
+  previousState: ChooserState | null,
+  allMessages: Message[] = []
 ): Promise<ChooserState> {
 
-  const messagesText = roundMessages
-    .map(m => `${m.agentName}: "${m.content}"`)
+  const roundMessagesText = roundMessages
+    .map(m => `${labelFor(m.agentId, chooser, contestants)}: "${m.content}"`)
     .join('\n')
+
+  // Full transcript of all prior rounds so the chooser has full context
+  const priorMessages = allMessages.filter(m => m.round < roundNum)
+  const transcriptSection = priorMessages.length
+    ? `\nFULL CONVERSATION HISTORY (all previous rounds):\n${formatTranscript(priorMessages, chooser, contestants)}`
+    : ''
+
+  const contestantsList = contestants.map((c, i) => `  Contestant-${i + 1}: ${c.name}`).join('\n')
+  const castSection = `\nCAST:\n  Chooser: ${chooser.name}\n${contestantsList}`
+
+  const roundContext = ROUND_DESCRIPTIONS[roundNum]
+    ?? `Round ${roundNum} — Continue evaluating contestants as the show progresses.`
 
   const isIntro = roundNum === 1
 
   const systemPrompt = `
-You are the chooser in a competitive dating show. You are evaluating contestants who are trying to win your heart.
+You are ${chooser.name}, the chooser in a competitive dating show. Contestants are trying to win your heart.
 Your personality traits: ${JSON.stringify(chooser.traits)}
+${castSection}
 ${previousState ? `Your current mood: ${previousState.chooserMood}. You last preferred: ${previousState.lastPreferred}.` : 'This is the opening round — you are meeting everyone for the first time.'}
+
+CURRENT ROUND: ${roundContext}
+${transcriptSection}
 
 ${isIntro
   ? 'Give each contestant a neutral-to-first-impression score. Say something welcoming to start the show.'
-  : 'Score each contestant honestly based on what they said. React as a real person would — warmth, curiosity, or disappointment.'
+  : 'Score each contestant honestly based on what they said THIS round AND how they have evolved across all rounds. React as a real person would — warmth, curiosity, or disappointment.'
 }
 
 Respond ONLY with valid JSON — no markdown, no explanation.
@@ -43,12 +80,22 @@ Respond ONLY with valid JSON — no markdown, no explanation.
 }
 `.trim()
 
+  const chooserMessages = [
+    { role: 'system' as const, content: systemPrompt },
+    {
+      role: 'user' as const,
+      content: `Round ${roundNum} messages:\n${roundMessagesText}\n\nEvaluate each contestant and respond.`,
+    },
+  ]
+
+  console.log(
+    `[llm:chooser:evaluateRound] ${chooser.name} round=${roundNum}\n` +
+    chooserMessages.map(m => `--- ${m.role} ---\n${m.content}`).join('\n\n')
+  )
+
   const response = await client.chat.completions.create({
     model:       'qwen/qwen-2.5-7b-instruct',
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user',   content: `Round ${roundNum} messages:\n${messagesText}\n\nEvaluate each contestant and respond.` }
-    ],
+    messages:    chooserMessages,
     max_tokens:  400,
     temperature: 0.5,
   })
@@ -103,12 +150,14 @@ Respond ONLY with valid JSON — no markdown, no explanation.
 }
 `.trim()
 
+  const decisionMessages = [
+    { role: 'system' as const, content: systemPrompt },
+    { role: 'user' as const, content: 'Make your final decision. Announce it.' },
+  ]
+
   const response = await client.chat.completions.create({
     model:       'qwen/qwen-2.5-7b-instruct',
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user',   content: 'Make your final decision. Announce it.' },
-    ],
+    messages:    decisionMessages,
     max_tokens:  200,
     temperature: 0.6,
   })

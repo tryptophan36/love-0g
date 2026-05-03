@@ -2,8 +2,8 @@ import OpenAI from 'openai'
 import type { Agent, Message, JudgeScore } from '../types.js'
 
 const client = new OpenAI({
-  baseURL: `${process.env.ZG_SERVICE_URL}/v1/proxy`,
-  apiKey:  process.env.ZG_API_SECRET,
+  baseURL: 'https://router-api-testnet.integratenetwork.work/v1',
+  apiKey:  process.env.ZG_API_SECRET ?? '',
 })
 
 export async function runJudge(
