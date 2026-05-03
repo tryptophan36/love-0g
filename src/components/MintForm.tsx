@@ -30,6 +30,16 @@ const CAPABILITY_OPTIONS = [
   "Task Automation",
 ];
 
+function extractTokenIdFromReceipt(
+  receipt: { status?: string; logs?: readonly { topics: readonly `0x${string}`[] }[] } | undefined
+): bigint | null {
+  if (receipt?.status !== "success" || !receipt.logs?.length) return null;
+  const transferLog = receipt.logs[0];
+  const topic = transferLog?.topics?.[3];
+  if (!topic) return null;
+  return BigInt(topic);
+}
+
 export default function MintForm({
   contractAddress,
   onMintSuccess,
@@ -37,7 +47,7 @@ export default function MintForm({
 }: {
   contractAddress: `0x${string}`;
   onMintSuccess?: (tokenId: bigint) => void;
-  onMetaChange?: (meta: { name: string; model: string; capabilities: string[] }) => void;
+  onMetaChange?: (meta: { name: string; model: string; capabilities: string[]; imageUrl: string }) => void;
 }) {
   const { address, isConnected } = useAccount();
 
@@ -46,7 +56,7 @@ export default function MintForm({
   const [customModel, setCustomModel] = useState("");
   const [capabilities, setCapabilities] = useState<string[]>([]);
   const [systemPrompt, setSystemPrompt] = useState("");
-  const [successTokenId, setSuccessTokenId] = useState<string | null>(null);
+  const [imageUrl, setImageUrl] = useState("");
 
   const { data: mintFee, isError: mintFeeError } = useReadContract({
     address: contractAddress,
@@ -69,25 +79,22 @@ export default function MintForm({
 
   // Use refs for callbacks so the effect doesn't re-trigger on reference changes
   const onMintSuccessRef = useRef(onMintSuccess);
-  onMintSuccessRef.current = onMintSuccess;
+  useEffect(() => {
+    onMintSuccessRef.current = onMintSuccess;
+  }, [onMintSuccess]);
 
   // Track which txHash we already processed to avoid duplicate calls
   const processedTxRef = useRef<string | null>(null);
 
   useEffect(() => {
+    const tokenId = extractTokenIdFromReceipt(receipt);
     if (
-      receipt?.status === "success" &&
-      receipt.logs.length > 0 &&
+      tokenId !== null &&
       txHash &&
       processedTxRef.current !== txHash
     ) {
       processedTxRef.current = txHash;
-      const transferLog = receipt.logs[0];
-      if (transferLog.topics[3]) {
-        const tokenId = BigInt(transferLog.topics[3]);
-        setSuccessTokenId(tokenId.toString());
-        onMintSuccessRef.current?.(tokenId);
-      }
+      onMintSuccessRef.current?.(tokenId);
     }
   }, [receipt, txHash]);
 
@@ -103,12 +110,11 @@ export default function MintForm({
     const resolvedModel = model === "Custom" ? customModel.trim() : model;
     if (!resolvedModel) return;
 
-    setSuccessTokenId(null);
-
     onMetaChange?.({
       name: agentName.trim(),
       model: resolvedModel,
       capabilities: [...capabilities],
+      imageUrl: imageUrl.trim(),
     });
 
     const datas = [
@@ -128,6 +134,10 @@ export default function MintForm({
         dataDescription: "system_prompt",
         dataHash: keccak256(toHex(systemPrompt.trim() || "default")),
       },
+      {
+        dataDescription: "image_url",
+        dataHash: keccak256(toHex(imageUrl.trim() || "none")),
+      },
     ];
 
     writeContract({
@@ -141,6 +151,7 @@ export default function MintForm({
 
   const isBusy = isWritePending || isConfirming;
   const displayError = writeError || confirmError;
+  const successTokenId = extractTokenIdFromReceipt(receipt)?.toString() ?? null;
   const canSubmit =
     isConnected &&
     !isBusy &&
@@ -239,6 +250,21 @@ export default function MintForm({
           onChange={(e) => setSystemPrompt(e.target.value)}
           rows={3}
           className="w-full bg-og-dark border border-og-border rounded-og-sm px-3 py-2.5 text-sm text-[#F5F5F7] placeholder-[#5A5A6E] focus:outline-none focus:border-og-accent focus:ring-1 focus:ring-og-accent/30 transition-colors resize-none"
+        />
+      </div>
+
+      {/* Image URL */}
+      <div className="space-y-2">
+        <label className="text-sm font-medium text-og-label">
+          Image URL{" "}
+          <span className="text-[#5A5A6E] font-normal">(optional)</span>
+        </label>
+        <input
+          type="url"
+          placeholder="https://.../agent.png"
+          value={imageUrl}
+          onChange={(e) => setImageUrl(e.target.value)}
+          className="w-full bg-og-dark border border-og-border rounded-og-sm px-3 py-2.5 text-sm text-[#F5F5F7] placeholder-[#5A5A6E] focus:outline-none focus:border-og-accent focus:ring-1 focus:ring-og-accent/30 transition-colors"
         />
       </div>
 

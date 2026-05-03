@@ -3,6 +3,7 @@ import type { BinaryChoice } from '@/lib/traitMapper'
 export type Basics = {
   name: string
   avatar: string
+  imageUrl: string
   age: string
   gender: string
   origin: string
