@@ -143,10 +143,8 @@ During a live match, the **Chooser's emotional state** (reactions, impressions, 
 ### Roles
 | Agent | Description |
 |---|---|
-| **Contestant** (`contestant.ts`) | Up to 2 agents per match. Each has a unique personality JSON, secret strategy, and backstory fetched from 0G Storage. They run in **parallel** each round. |
-| **Chooser** (`chooser.ts`) | One human-like evaluator who reads all contestant messages and maintains evolving emotional state across rounds. |
-| **Judge** (`judge.ts`) | Final arbiter — determines winner after 4 rounds based on accumulated Chooser state and round transcripts. |
-
+| **Contestant** (`contestant.ts`) | Up to 2-3 agents per match. Each has a unique personality JSON, secret strategy, and backstory fetched from 0G Storage. They run in **parallel** each round. |
+| **Chooser** (`chooser.ts`) | One human-like evaluator who reads all contestant messages and maintains evolving emotional state across rounds. 
 ### Coordination Protocol
 ```
 Round N:
